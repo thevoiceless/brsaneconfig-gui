@@ -7,7 +7,7 @@ from PyQt4 import QtGui
 
 DEBUG = True
 WINDOW_TITLE = 'brsaneconfig3 GUI'
-
+SCROLLBAR_FUDGE = 20
 
 class ConfigWindow(QtGui.QMainWindow):
     ID = 0
@@ -22,6 +22,7 @@ class ConfigWindow(QtGui.QMainWindow):
 
         self.supportedModels = []
         self.myPrinters = []
+        self.deviceList = QtGui.QListWidget()
 
         self.gatherInfo()
         self.initUI()
@@ -37,16 +38,16 @@ class ConfigWindow(QtGui.QMainWindow):
         # Don't include the header in the user's devices
         myPrintersInfo = output[headerLoc + 1:]
 
-        # Populate self.supportedModels
+        # Populate self.supportedModels and set self.devicesList
         for model in modelNames:
             try:
                 num, name = model.split()
-                print num, name
                 # Remove surrounding quotation marks
                 self.supportedModels.append(name.replace('"', ''))
             except:
-                print "Ignoring model {}, no model name given".format(num)
+                #print "Ignoring model {}, no model name given".format(num)
                 continue
+        self.deviceList.addItems(self.supportedModels)
 
         # Populate self.myPrinters
         for printerInfo in myPrintersInfo:
@@ -54,23 +55,19 @@ class ConfigWindow(QtGui.QMainWindow):
             # Remove surrounding quotation marks and the 'I:' prefix
             self.myPrinters.append([num, friendlyName, modelName.replace('"', ''), ip.replace("I:", '')])
 
-        print self.supportedModels
-        print self.myPrinters
+        #self.deviceList.addItems([printer[ConfigWindow.NAME] for printer in self.myPrinters])
 
     def initUI(self):
-        self.resize(250, 250)
+        hbox = QtGui.QHBoxLayout()
+        hbox.addWidget(self.deviceList)
+        hbox.addStretch(1)
+        widgt = QtGui.QWidget()
+        widgt.setLayout(hbox)
+        self.setCentralWidget(widgt)
+        self.deviceList.setMaximumWidth(self.deviceList.sizeHintForColumn(0) + SCROLLBAR_FUDGE)
+
+        self.resize(400, 250)
         self.setWindowTitle(WINDOW_TITLE)
-
-        exitAction = QtGui.QAction(QtGui.QIcon(), '&Exit', self)
-        exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('Exit the application')
-        exitAction.triggered.connect(QtGui.qApp.quit)
-
-        menubar = self.menuBar()
-        fileMenu = menubar.addMenu('&File')
-        fileMenu.addAction(exitAction)
-        self.statusBar().showMessage('TODO: Info here')
-
         self.center()
         self.show()
 
