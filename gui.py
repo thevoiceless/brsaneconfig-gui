@@ -6,7 +6,6 @@ from PyQt4 import QtGui
 
 
 class ConfigWindow(QtGui.QWidget):
-
     ID = 0
     NAME = 1
     MODEL = 2
@@ -34,13 +33,20 @@ class ConfigWindow(QtGui.QWidget):
 
     def initUI(self):
         # setGeometry(x, y, width, height) sets window location and size
-        self.setGeometry(300, 300, 250, 150)
+        #self.setGeometry(300, 300, 250, 150)
+        self.resize(250, 250)
         self.setWindowTitle('brsaneconfig3')
+        self.center()
         self.show()
+
+    def center(self):
+        ourRect = self.frameGeometry()
+        screenCenter = QtGui.QDesktopWidget().availableGeometry().center()
+        ourRect.moveCenter(screenCenter)
+        self.move(ourRect.topLeft())
 
 
 def main():
-
     # Every PyQt4 application must create an application object
     app = QtGui.QApplication(sys.argv)
 
