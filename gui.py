@@ -9,7 +9,7 @@ DEBUG = True
 WINDOW_TITLE = 'brsaneconfig3 GUI'
 
 
-class ConfigWindow(QtGui.QWidget):
+class ConfigWindow(QtGui.QMainWindow):
     ID = 0
     NAME = 1
     MODEL = 2
@@ -60,6 +60,17 @@ class ConfigWindow(QtGui.QWidget):
     def initUI(self):
         self.resize(250, 250)
         self.setWindowTitle(WINDOW_TITLE)
+
+        exitAction = QtGui.QAction(QtGui.QIcon(), '&Exit', self)
+        exitAction.setShortcut('Ctrl+Q')
+        exitAction.setStatusTip('Exit the application')
+        exitAction.triggered.connect(QtGui.qApp.quit)
+
+        menubar = self.menuBar()
+        fileMenu = menubar.addMenu('&File')
+        fileMenu.addAction(exitAction)
+        self.statusBar().showMessage('TODO: Info here')
+
         self.center()
         self.show()
 
