@@ -5,37 +5,61 @@ import subprocess
 from PyQt4 import QtGui
 
 
+DEBUG = True
+WINDOW_TITLE = 'brsaneconfig3 GUI'
+
+
 class ConfigWindow(QtGui.QWidget):
     ID = 0
     NAME = 1
     MODEL = 2
     IP = 3
+    HEADER = "Devices on network"
 
     def __init__(self):
         # The super() method returns the parent object of the given class
         super(ConfigWindow, self).__init__()
 
-        self.printers = []
+        self.supportedModels = []
+        self.myPrinters = []
+
         self.gatherInfo()
         self.initUI()
 
     def gatherInfo(self):
         output = subprocess.check_output(["brsaneconfig3", "-q"]).splitlines()
-        relevantOutput = output[output.index('Devices on network') + 1:]
 
-        for printerInfo in relevantOutput:
-            id, friendlyName, modelName, ip = printerInfo.split()
-            modelName = modelName.replace('"', '')
-            ip = ip.replace("I:", '')
-            self.printers.append([id, friendlyName, modelName, ip])
+        # Get index of the header that separates the list of supported models from the user's devices
+        headerLoc = output.index(ConfigWindow.HEADER)
 
-        print self.printers
+        # Strip out blank lines from list of models
+        modelNames = [item for item in output[0:headerLoc] if len(item) > 0]
+        # Don't include the header in the user's devices
+        myPrintersInfo = output[headerLoc + 1:]
+
+        # Populate self.supportedModels
+        for model in modelNames:
+            try:
+                num, name = model.split()
+                print num, name
+                # Remove surrounding quotation marks
+                self.supportedModels.append(name.replace('"', ''))
+            except:
+                print "Ignoring model {}, no model name given".format(num)
+                continue
+
+        # Populate self.myPrinters
+        for printerInfo in myPrintersInfo:
+            num, friendlyName, modelName, ip = printerInfo.split()
+            # Remove surrounding quotation marks and the 'I:' prefix
+            self.myPrinters.append([num, friendlyName, modelName.replace('"', ''), ip.replace("I:", '')])
+
+        print self.supportedModels
+        print self.myPrinters
 
     def initUI(self):
-        # setGeometry(x, y, width, height) sets window location and size
-        #self.setGeometry(300, 300, 250, 150)
         self.resize(250, 250)
-        self.setWindowTitle('brsaneconfig3')
+        self.setWindowTitle(WINDOW_TITLE)
         self.center()
         self.show()
 
