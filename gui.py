@@ -9,6 +9,7 @@ DEBUG = True
 WINDOW_TITLE = 'brsaneconfig3'
 WIDTH_FUDGE = 30
 
+
 class ConfigWindow(QtGui.QMainWindow):
     ID = 0
     NAME = 1
@@ -28,12 +29,10 @@ class ConfigWindow(QtGui.QMainWindow):
         self.selectedDevice = []
         self.noWhitespaceRegex = QtCore.QRegExp('[^\s]+')
         self.friendlyNameEdit = QtGui.QLineEdit()
+        self.editedCurrentDevice = False
 
         self.gatherInfo()
         self.initUI()
-
-        # TODO: Populate form based on selected device
-        print "Default selected device is \"" + self.deviceList.currentItem().text() + "\""
 
     def gatherInfo(self):
         output = subprocess.check_output(["brsaneconfig3", "-q"]).splitlines()
@@ -74,7 +73,7 @@ class ConfigWindow(QtGui.QMainWindow):
         self.deviceList.setCurrentRow(0)
 
     def initUI(self):
-        # TODO: Possibly separate each block into its own function
+        # TODO: Possibly separate each block of code into its own function
         # Device list on left
         deviceListPanel = QtGui.QVBoxLayout()
         deviceListPanel.addWidget(self.deviceList)
@@ -203,7 +202,6 @@ class ConfigWindow(QtGui.QMainWindow):
             print "addr", addr
             nodeEdit.setText(addr.replace(ConfigWindow.PREFIX, "", 1))
             ipWidget.setEnabled(False)
-
 
         # Resize and show
         self.resize(self.minimumSizeHint().width(), self.minimumSizeHint().height())
