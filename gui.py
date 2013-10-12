@@ -65,27 +65,27 @@ class ConfigWindow(QtGui.QMainWindow):
 
     def initUI(self):
         # Device list on left
-        vbox = QtGui.QVBoxLayout()
-        vbox.addWidget(self.deviceList)
-        addBtn = QtGui.QPushButton("Add New Device")
-        vbox.addWidget(addBtn)
+        deviceListPanel = QtGui.QVBoxLayout()
+        deviceListPanel.addWidget(self.deviceList)
+        addDeviceBtn = QtGui.QPushButton("Add New Device")
+        deviceListPanel.addWidget(addDeviceBtn)
 
         # Main layout
-        hbox = QtGui.QHBoxLayout()
-        hbox.addLayout(vbox)
-        widgt = QtGui.QWidget()
-        widgt.setLayout(hbox)
-        self.setCentralWidget(widgt)
+        mainHBox = QtGui.QHBoxLayout()
+        mainHBox.addLayout(deviceListPanel)
+        mainWidget = QtGui.QWidget()
+        mainWidget.setLayout(mainHBox)
+        self.setCentralWidget(mainWidget)
         # Do not allow resizing the devices list
         self.deviceList.setMaximumWidth(self.deviceList.sizeHintForColumn(0) + WIDTH_FUDGE)
-        self.deviceList.setMinimumWidth(addBtn.minimumSizeHint().width())
+        self.deviceList.setMinimumWidth(addDeviceBtn.minimumSizeHint().width())
 
-        #self.deviceList.setMinimumWidth(self.deviceList.sizeHintForColumn(0) + WIDTH_FUDGE)
-
+        # Friendly name, user input
         friendlyName = QtGui.QLabel('Name:')
         # TODO: Disallow whitespace
         friendlyNameEdit = QtGui.QLineEdit()
 
+        # Model name, combo box
         modelName = QtGui.QLabel('Model:')
         modelNameSelect = QtGui.QComboBox()
         modelNameSelect.addItems(self.supportedModels)
@@ -94,6 +94,7 @@ class ConfigWindow(QtGui.QMainWindow):
         modelNameSelect.setStyleSheet("QComboBox { combobox-popup: 0; }")
         modelNameSelect.setMaxVisibleItems(10)
 
+        # IP address or node name, radio buttons
         group = QtGui.QButtonGroup()
         ipRadio = QtGui.QRadioButton("IP:")
         nodeRadio = QtGui.QRadioButton("Node:")
@@ -101,6 +102,11 @@ class ConfigWindow(QtGui.QMainWindow):
         group.addButton(nodeRadio)
         group.setExclusive(True)
 
+        ipEdit = QtGui.QLineEdit()
+        nodePrefix = QtGui.QLabel("BRN_")
+        nodeEdit = QtGui.QLineEdit()
+
+        # Device info to the right of the device list
         grid = QtGui.QGridLayout()
         grid.setSpacing(10)
 
@@ -111,11 +117,18 @@ class ConfigWindow(QtGui.QMainWindow):
         grid.addWidget(modelNameSelect, 2, 1)
 
         grid.addWidget(ipRadio, 3, 0)
+        grid.addWidget(ipEdit, 3, 1)
         grid.addWidget(nodeRadio, 4, 0)
+        
+        nodeNameLayout = QtGui.QHBoxLayout()
+        nodeNameLayout.addWidget(nodePrefix)
+        nodeNameLayout.addWidget(nodeEdit)
+        nodeNameWidget = QtGui.QWidget()
+        nodeNameWidget.setLayout(nodeNameLayout)
+        grid.addWidget(nodeNameWidget, 4, 1)
 
-        hbox.addLayout(grid)
+        mainHBox.addLayout(grid)
 
-        #hbox.addStretch(1)
         self.resize(400, 250)
         self.setWindowTitle(WINDOW_TITLE)
         self.center()
