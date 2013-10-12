@@ -6,3 +6,4 @@ This is a simple Python/Qt GUI that interfaces with Brother's brsaneconfig3 util
 ### Dependencies
 * Python (written for 2.7, might work with 3.x)
 * PyQt
+* brsaneconfig3

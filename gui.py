@@ -7,7 +7,7 @@ from PyQt4 import QtGui
 
 DEBUG = True
 WINDOW_TITLE = 'brsaneconfig3 GUI'
-SCROLLBAR_FUDGE = 30
+WIDTH_FUDGE = 30
 
 class ConfigWindow(QtGui.QMainWindow):
     ID = 0
@@ -77,10 +77,10 @@ class ConfigWindow(QtGui.QMainWindow):
         widgt.setLayout(hbox)
         self.setCentralWidget(widgt)
         # Do not allow resizing the devices list
-        self.deviceList.setMaximumWidth(self.deviceList.sizeHintForColumn(0) + SCROLLBAR_FUDGE)
+        self.deviceList.setMaximumWidth(self.deviceList.sizeHintForColumn(0) + WIDTH_FUDGE)
         self.deviceList.setMinimumWidth(addBtn.minimumSizeHint().width())
 
-        #self.deviceList.setMinimumWidth(self.deviceList.sizeHintForColumn(0) + SCROLLBAR_FUDGE)
+        #self.deviceList.setMinimumWidth(self.deviceList.sizeHintForColumn(0) + WIDTH_FUDGE)
 
         friendlyName = QtGui.QLabel('Name:')
         # TODO: Disallow whitespace
@@ -94,9 +94,12 @@ class ConfigWindow(QtGui.QMainWindow):
         modelNameSelect.setStyleSheet("QComboBox { combobox-popup: 0; }")
         modelNameSelect.setMaxVisibleItems(10)
 
-        ipLabel = QtGui.QLabel('IP:')
-
-        nodeLabel = QtGui.QLabel('Node:')
+        group = QtGui.QButtonGroup()
+        ipRadio = QtGui.QRadioButton("IP:")
+        nodeRadio = QtGui.QRadioButton("Node:")
+        group.addButton(ipRadio)
+        group.addButton(nodeRadio)
+        group.setExclusive(True)
 
         grid = QtGui.QGridLayout()
         grid.setSpacing(10)
@@ -106,6 +109,9 @@ class ConfigWindow(QtGui.QMainWindow):
 
         grid.addWidget(modelName, 2, 0)
         grid.addWidget(modelNameSelect, 2, 1)
+
+        grid.addWidget(ipRadio, 3, 0)
+        grid.addWidget(nodeRadio, 4, 0)
 
         hbox.addLayout(grid)
 
