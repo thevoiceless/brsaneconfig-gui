@@ -66,6 +66,7 @@ class ConfigWindow(QtGui.QMainWindow):
         self.deviceList.setCurrentRow(0)
 
     def initUI(self):
+        # TODO: Possibly separate each block into its own function
         # Device list on left
         deviceListPanel = QtGui.QVBoxLayout()
         deviceListPanel.addWidget(self.deviceList)
@@ -85,8 +86,7 @@ class ConfigWindow(QtGui.QMainWindow):
         # Friendly name, user input
         friendlyName = QtGui.QLabel('Name:')
         # Verify text as it is typed so that we can display a message
-        #self.friendlyNameEdit.textEdited.connect(self.checkNameInput)
-        self.friendlyNameEdit.connect(self.friendlyNameEdit, QtCore.SIGNAL("textEdited(QString)"), self.checkNameInput)
+        self.friendlyNameEdit.textEdited.connect(self.checkNameInput)
 
         # Model name, combo box
         modelName = QtGui.QLabel('Model:')
@@ -177,12 +177,14 @@ class ConfigWindow(QtGui.QMainWindow):
         self.center()
         self.show()
 
+    # Center the window on the screen
     def center(self):
         ourRect = self.frameGeometry()
         screenCenter = QtGui.QDesktopWidget().availableGeometry().center()
         ourRect.moveCenter(screenCenter)
         self.move(ourRect.topLeft())
 
+    # Disallow whitespace in the device's name
     def checkNameInput(self):
         if not self.noWhitespaceRegex.exactMatch(self.friendlyNameEdit.text()) and len(self.friendlyNameEdit.text()) > 0:
             QtGui.QMessageBox.warning(None, "Error", "The name cannot contain whitespace.")
