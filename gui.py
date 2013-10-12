@@ -6,23 +6,26 @@ from PyQt4 import QtGui, QtCore
 
 
 DEBUG = True
-WINDOW_TITLE = 'brsaneconfig3 GUI'
+WINDOW_TITLE = 'brsaneconfig3'
 WIDTH_FUDGE = 30
 
 class ConfigWindow(QtGui.QMainWindow):
     ID = 0
     NAME = 1
     MODEL = 2
-    IP = 3
+    ADDR = 3
+    USES_IP = 4
     HEADER = "Devices on network"
+    PREFIX = "BRN_"
 
     def __init__(self):
         # The super() method returns the parent object of the given class
         super(ConfigWindow, self).__init__()
 
         self.supportedModels = []
-        self.myPrinters = []
+        self.myDevices = []
         self.deviceList = QtGui.QListWidget()
+        self.selectedDevice = []
         self.noWhitespaceRegex = QtCore.QRegExp('[^\s]+')
         self.friendlyNameEdit = QtGui.QLineEdit()
 
@@ -54,15 +57,20 @@ class ConfigWindow(QtGui.QMainWindow):
                 continue
         self.supportedModels.sort()
 
-        # Populate self.myPrinters
+        # Populate self.myDevices
         for printerInfo in myPrintersInfo:
             num, friendlyName, modelName, ipOrNode = printerInfo.split()
             # Check if IP or node name is specified
-            isNode = ipOrNode.startswith("I:")
+            usesIP = ipOrNode.startswith("I:")
             # Remove surrounding quotation marks and the 'I:' prefix
-            self.myPrinters.append([num, friendlyName, modelName.replace('"', ''), ipOrNode.replace("I:", ''), isNode])
+            self.myDevices.append([num,
+                                   friendlyName,
+                                   modelName.replace('"', ''),
+                                   ipOrNode.replace("I:", '').replace("N:", ""),
+                                   usesIP])
 
-        self.deviceList.addItems([printer[ConfigWindow.NAME] for printer in self.myPrinters])
+        # self.deviceList contains only the names from self.myDevices
+        self.deviceList.addItems([device[ConfigWindow.NAME] for device in self.myDevices])
         self.deviceList.setCurrentRow(0)
 
     def initUI(self):
@@ -118,6 +126,7 @@ class ConfigWindow(QtGui.QMainWindow):
         for i in range(4):
             ipEdits[i].setValidator(ipSegmentValidator)
             ipEdits[i].setMaxLength(3)
+            ipEdits[i].setAlignment(QtCore.Qt.AlignCenter)
             ipLayout.addWidget(ipEdits[i])
             if i != 3:
                 ipLayout.addWidget(QtGui.QLabel("."))
@@ -127,8 +136,8 @@ class ConfigWindow(QtGui.QMainWindow):
         ipWidget.setContentsMargins(0, 0, 0, 0)
         ipWidget.layout().setContentsMargins(0, 0, 0, 0)
 
-        # Node name, prefixed with "BRN_"
-        nodePrefix = QtGui.QLabel("BRN_")
+        # Node name, prefixed with ConfigWindow.PREFIX
+        nodePrefix = QtGui.QLabel(ConfigWindow.PREFIX)
         nodeEdit = QtGui.QLineEdit()
         nodeNameLayout = QtGui.QHBoxLayout()
         nodeNameLayout.setSpacing(0)
@@ -170,6 +179,31 @@ class ConfigWindow(QtGui.QMainWindow):
         grid.addWidget(buttonsWidget, 5, 0, 1, 2)
 
         mainHBox.addLayout(grid)
+
+        # Get info about currently-selected device and populate fields
+        selectedName = self.deviceList.currentItem().text()
+        self.friendlyNameEdit.setText(selectedName)
+
+        for device in self.myDevices:
+            if device[ConfigWindow.NAME] == selectedName:
+                self.selectedDevice = device
+                print "Selected device is", self.selectedDevice
+                break
+
+        modelNameSelect.setCurrentIndex(modelNameSelect.findText(device[ConfigWindow.MODEL]))
+
+        if device[ConfigWindow.USES_IP]:
+            ipRadio.setChecked(True)
+            for textbox, segment in zip(ipEdits, device[ConfigWindow.ADDR].split('.')):
+                textbox.setText(segment)
+            nodeNameWidget.setEnabled(False)
+        else:
+            nodeRadio.setChecked(True)
+            addr = device[ConfigWindow.ADDR]
+            print "addr", addr
+            nodeEdit.setText(addr.replace(ConfigWindow.PREFIX, "", 1))
+            ipWidget.setEnabled(False)
+
 
         # Resize and show
         self.resize(self.minimumSizeHint().width(), self.minimumSizeHint().height())
