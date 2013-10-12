@@ -25,11 +25,13 @@ class ConfigWindow(QtGui.QMainWindow):
 
         self.supportedModels = []
         self.myDevices = []
-        self.deviceList = QtGui.QListWidget()
         self.selectedDevice = []
+
+        self.deviceList = QtGui.QListWidget()
         self.noWhitespaceRegex = QtCore.QRegExp('[^\s]+')
         self.friendlyNameEdit = QtGui.QLineEdit()
-        self.editedCurrentDevice = False
+        self.hasEditedCurrentDevice = False
+        self.saveBtn = None
 
         self.gatherInfo()
         self.initUI()
@@ -93,7 +95,7 @@ class ConfigWindow(QtGui.QMainWindow):
         # Friendly name, user input
         friendlyName = QtGui.QLabel('Name:')
         # Verify text as it is typed so that we can display a message
-        self.friendlyNameEdit.textEdited.connect(self.checkNameInput)
+        self.friendlyNameEdit.textEdited.connect(self.onNameInputChange)
 
         # Model name, combo box
         modelName = QtGui.QLabel('Model:')
@@ -148,12 +150,13 @@ class ConfigWindow(QtGui.QMainWindow):
         nodeNameWidget.layout().setContentsMargins(0, 0, 0, 0)
 
         # "Save" and "delete" buttons
-        saveButton = QtGui.QPushButton("Save")
+        self.saveBtn = QtGui.QPushButton("Save")
+        self.saveBtn.setEnabled(False)
         deleteButton = QtGui.QPushButton("Delete")
 
         buttonsLayout = QtGui.QHBoxLayout()
         buttonsLayout.addWidget(deleteButton)
-        buttonsLayout.addWidget(saveButton)
+        buttonsLayout.addWidget(self.saveBtn)
         buttonsWidget = QtGui.QWidget()
         buttonsWidget.setLayout(buttonsLayout)
         buttonsWidget.setContentsMargins(0, 0, 0, 0)
@@ -189,16 +192,16 @@ class ConfigWindow(QtGui.QMainWindow):
                 print "Selected device is", self.selectedDevice
                 break
 
-        modelNameSelect.setCurrentIndex(modelNameSelect.findText(device[ConfigWindow.MODEL]))
+        modelNameSelect.setCurrentIndex(modelNameSelect.findText(self.selectedDevice[ConfigWindow.MODEL]))
 
-        if device[ConfigWindow.USES_IP]:
+        if self.selectedDevice[ConfigWindow.USES_IP]:
             ipRadio.setChecked(True)
-            for textbox, segment in zip(ipEdits, device[ConfigWindow.ADDR].split('.')):
+            for textbox, segment in zip(ipEdits, self.selectedDevice[ConfigWindow.ADDR].split('.')):
                 textbox.setText(segment)
             nodeNameWidget.setEnabled(False)
         else:
             nodeRadio.setChecked(True)
-            addr = device[ConfigWindow.ADDR]
+            addr = self.selectedDevice[ConfigWindow.ADDR]
             print "addr", addr
             nodeEdit.setText(addr.replace(ConfigWindow.PREFIX, "", 1))
             ipWidget.setEnabled(False)
@@ -216,11 +219,19 @@ class ConfigWindow(QtGui.QMainWindow):
         ourRect.moveCenter(screenCenter)
         self.move(ourRect.topLeft())
 
-    # Disallow whitespace in the device's name
-    def checkNameInput(self):
+    # Error-checking when self.friendlyNameEdit changes
+    def onNameInputChange(self):
+        # Disallow whitespace
         if not self.noWhitespaceRegex.exactMatch(self.friendlyNameEdit.text()) and len(self.friendlyNameEdit.text()) > 0:
             QtGui.QMessageBox.warning(None, "Error", "The name cannot contain whitespace.")
             self.friendlyNameEdit.setText(self.friendlyNameEdit.text()[:-1])
+        # Check if modified from original
+        if self.friendlyNameEdit.text() != self.selectedDevice[ConfigWindow.NAME]:
+            self.hasEditedCurrentDevice = True
+            self.saveBtn.setEnabled(True)
+        else:
+            self.hasEditedCurrentDevice = False
+            self.saveBtn.setEnabled(False)
 
 
 def main():
