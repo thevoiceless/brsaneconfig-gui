@@ -3,6 +3,7 @@
 import sys
 import subprocess
 from PyQt4 import QtGui
+from PyQt4 import QtCore
 
 
 DEBUG = True
@@ -23,6 +24,8 @@ class ConfigWindow(QtGui.QMainWindow):
         self.supportedModels = []
         self.myPrinters = []
         self.deviceList = QtGui.QListWidget()
+        self.noWhitespaceRegex = QtCore.QRegExp('[^\s]+')
+        self.friendlyNameEdit = QtGui.QLineEdit()
 
         self.gatherInfo()
         self.initUI()
@@ -82,8 +85,8 @@ class ConfigWindow(QtGui.QMainWindow):
 
         # Friendly name, user input
         friendlyName = QtGui.QLabel('Name:')
-        # TODO: Disallow whitespace
-        friendlyNameEdit = QtGui.QLineEdit()
+        # Verify text as it is typed so that we can display a message
+        self.friendlyNameEdit.textEdited.connect(self.checkNameInput)
 
         # Model name, combo box
         modelName = QtGui.QLabel('Model:')
@@ -103,7 +106,7 @@ class ConfigWindow(QtGui.QMainWindow):
         group.setExclusive(True)
 
         # IP address, split into four 3-digit sections
-        validator = QtGui.QIntValidator(001, 999)
+        ipSegmentValidator = QtGui.QIntValidator(001, 999)
         ipEdit1 = QtGui.QLineEdit()
         ipEdit2 = QtGui.QLineEdit()
         ipEdit3 = QtGui.QLineEdit()
@@ -113,7 +116,7 @@ class ConfigWindow(QtGui.QMainWindow):
         ipLayout.setSpacing(0)
 
         for i in range(4):
-            ipEdits[i].setValidator(validator)
+            ipEdits[i].setValidator(ipSegmentValidator)
             ipEdits[i].setMaxLength(3)
             ipLayout.addWidget(ipEdits[i])
             if i != 3:
@@ -153,7 +156,7 @@ class ConfigWindow(QtGui.QMainWindow):
         grid.setSpacing(10)
 
         grid.addWidget(friendlyName, 0, 0)
-        grid.addWidget(friendlyNameEdit, 0, 1)
+        grid.addWidget(self.friendlyNameEdit, 0, 1)
 
         grid.addWidget(modelName, 1, 0)
         grid.addWidget(modelNameSelect, 1, 1)
@@ -179,6 +182,11 @@ class ConfigWindow(QtGui.QMainWindow):
         screenCenter = QtGui.QDesktopWidget().availableGeometry().center()
         ourRect.moveCenter(screenCenter)
         self.move(ourRect.topLeft())
+
+    def checkNameInput(self):
+        if not self.noWhitespaceRegex.exactMatch(self.friendlyNameEdit.text()) and len(self.friendlyNameEdit.text()) > 0:
+            QtGui.QMessageBox.warning(None, "Error", "The name cannot contain whitespace.")
+            self.friendlyNameEdit.setText(self.friendlyNameEdit.text()[:-1])
 
 
 def main():
