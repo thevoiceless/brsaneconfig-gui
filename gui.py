@@ -27,6 +27,9 @@ class ConfigWindow(QtGui.QMainWindow):
         self.gatherInfo()
         self.initUI()
 
+        # TODO: Populate form based on selected device
+        print "Default selected device is \"" + self.deviceList.currentItem().text() + "\""
+
     def gatherInfo(self):
         output = subprocess.check_output(["brsaneconfig3", "-q"]).splitlines()
 
@@ -48,7 +51,6 @@ class ConfigWindow(QtGui.QMainWindow):
                 #print "Ignoring model {}, no model name given".format(num)
                 continue
         self.supportedModels.sort()
-        self.deviceList.addItems(self.supportedModels)
 
         # Populate self.myPrinters
         for printerInfo in myPrintersInfo:
@@ -58,13 +60,15 @@ class ConfigWindow(QtGui.QMainWindow):
             # Remove surrounding quotation marks and the 'I:' prefix
             self.myPrinters.append([num, friendlyName, modelName.replace('"', ''), ipOrNode.replace("I:", ''), isNode])
 
-        #self.deviceList.addItems([printer[ConfigWindow.NAME] for printer in self.myPrinters])
+        self.deviceList.addItems([printer[ConfigWindow.NAME] for printer in self.myPrinters])
+        self.deviceList.setCurrentRow(0)
 
     def initUI(self):
         # Device list on left
         vbox = QtGui.QVBoxLayout()
         vbox.addWidget(self.deviceList)
-        vbox.addWidget(QtGui.QPushButton("Add New Device"))
+        addBtn = QtGui.QPushButton("Add New Device")
+        vbox.addWidget(addBtn)
 
         # Main layout
         hbox = QtGui.QHBoxLayout()
@@ -74,9 +78,12 @@ class ConfigWindow(QtGui.QMainWindow):
         self.setCentralWidget(widgt)
         # Do not allow resizing the devices list
         self.deviceList.setMaximumWidth(self.deviceList.sizeHintForColumn(0) + SCROLLBAR_FUDGE)
-        self.deviceList.setMinimumWidth(self.deviceList.sizeHintForColumn(0) + SCROLLBAR_FUDGE)
+        self.deviceList.setMinimumWidth(addBtn.minimumSizeHint().width())
+
+        #self.deviceList.setMinimumWidth(self.deviceList.sizeHintForColumn(0) + SCROLLBAR_FUDGE)
 
         friendlyName = QtGui.QLabel('Name:')
+        # TODO: Disallow whitespace
         friendlyNameEdit = QtGui.QLineEdit()
 
         modelName = QtGui.QLabel('Model:')
