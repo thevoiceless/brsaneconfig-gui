@@ -2,8 +2,7 @@
 
 import sys
 import subprocess
-from PyQt4 import QtGui
-from PyQt4 import QtCore
+from PyQt4 import QtGui, QtCore
 
 
 DEBUG = True
@@ -86,7 +85,8 @@ class ConfigWindow(QtGui.QMainWindow):
         # Friendly name, user input
         friendlyName = QtGui.QLabel('Name:')
         # Verify text as it is typed so that we can display a message
-        self.friendlyNameEdit.textEdited.connect(self.checkNameInput)
+        #self.friendlyNameEdit.textEdited.connect(self.checkNameInput)
+        self.friendlyNameEdit.connect(self.friendlyNameEdit, QtCore.SIGNAL("textEdited(QString)"), self.checkNameInput)
 
         # Model name, combo box
         modelName = QtGui.QLabel('Model:')
