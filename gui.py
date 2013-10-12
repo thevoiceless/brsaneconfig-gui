@@ -106,30 +106,48 @@ class ConfigWindow(QtGui.QMainWindow):
         nodePrefix = QtGui.QLabel("BRN_")
         nodeEdit = QtGui.QLineEdit()
 
-        # Device info to the right of the device list
-        grid = QtGui.QGridLayout()
-        grid.setSpacing(10)
-
-        grid.addWidget(friendlyName, 1, 0)
-        grid.addWidget(friendlyNameEdit, 1, 1)
-
-        grid.addWidget(modelName, 2, 0)
-        grid.addWidget(modelNameSelect, 2, 1)
-
-        grid.addWidget(ipRadio, 3, 0)
-        grid.addWidget(ipEdit, 3, 1)
-        grid.addWidget(nodeRadio, 4, 0)
-        
         nodeNameLayout = QtGui.QHBoxLayout()
+        nodeNameLayout.setSpacing(0)
         nodeNameLayout.addWidget(nodePrefix)
         nodeNameLayout.addWidget(nodeEdit)
         nodeNameWidget = QtGui.QWidget()
         nodeNameWidget.setLayout(nodeNameLayout)
-        grid.addWidget(nodeNameWidget, 4, 1)
+        nodeNameWidget.setContentsMargins(0, 0, 0, 0)
+        nodeNameWidget.layout().setContentsMargins(0, 0, 0, 0)
+
+        # "Save" and "delete" buttons
+        saveButton = QtGui.QPushButton("Save")
+        deleteButton = QtGui.QPushButton("Delete")
+
+        buttonsLayout = QtGui.QHBoxLayout()
+        buttonsLayout.addWidget(deleteButton)
+        buttonsLayout.addWidget(saveButton)
+        buttonsWidget = QtGui.QWidget()
+        buttonsWidget.setLayout(buttonsLayout)
+        buttonsWidget.setContentsMargins(0, 0, 0, 0)
+        buttonsWidget.layout().setContentsMargins(0, 0, 0, 0)
+
+        # Device info to the right of the device list
+        grid = QtGui.QGridLayout()
+        grid.setSpacing(10)
+
+        grid.addWidget(friendlyName, 0, 0)
+        grid.addWidget(friendlyNameEdit, 0, 1)
+
+        grid.addWidget(modelName, 1, 0)
+        grid.addWidget(modelNameSelect, 1, 1)
+
+        grid.addWidget(ipRadio, 2, 0)
+        grid.addWidget(ipEdit, 2, 1)
+        grid.addWidget(nodeRadio, 3, 0)
+        grid.addWidget(nodeNameWidget, 3, 1)
+
+        grid.setRowStretch(4, 1)
+        grid.addWidget(buttonsWidget, 5, 0, 1, 2)
 
         mainHBox.addLayout(grid)
 
-        self.resize(400, 250)
+        self.resize(450, 250)
         self.setWindowTitle(WINDOW_TITLE)
         self.center()
         self.show()
