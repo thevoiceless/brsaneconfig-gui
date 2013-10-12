@@ -26,11 +26,13 @@ class ConfigWindow(QtGui.QMainWindow):
         self.supportedModels = []
         self.myDevices = []
         self.selectedDevice = []
-
-        self.deviceList = QtGui.QListWidget()
         self.noWhitespaceRegex = QtCore.QRegExp('[^\s]+')
-        self.friendlyNameEdit = QtGui.QLineEdit()
         self.hasEditedCurrentDevice = False
+
+        # Interface elements
+        self.deviceList = QtGui.QListWidget()
+        self.friendlyNameEdit = QtGui.QLineEdit()
+        self.modelNameSelect = QtGui.QComboBox()
         self.saveBtn = None
 
         self.gatherInfo()
@@ -99,12 +101,12 @@ class ConfigWindow(QtGui.QMainWindow):
 
         # Model name, combo box
         modelName = QtGui.QLabel('Model:')
-        modelNameSelect = QtGui.QComboBox()
-        modelNameSelect.addItems(self.supportedModels)
+        self.modelNameSelect.addItems(self.supportedModels)
         # http://stackoverflow.com/a/11254459/1693087
         # Apply stylesheet to allow limiting max number of items
-        modelNameSelect.setStyleSheet("QComboBox { combobox-popup: 0; }")
-        modelNameSelect.setMaxVisibleItems(10)
+        self.modelNameSelect.setStyleSheet("QComboBox { combobox-popup: 0; }")
+        self.modelNameSelect.setMaxVisibleItems(10)
+        self.modelNameSelect.currentIndexChanged.connect(self.onModelNameChange)
 
         # IP address or node name, radio buttons
         group = QtGui.QButtonGroup()
@@ -170,7 +172,7 @@ class ConfigWindow(QtGui.QMainWindow):
         grid.addWidget(self.friendlyNameEdit, 0, 1)
 
         grid.addWidget(modelName, 1, 0)
-        grid.addWidget(modelNameSelect, 1, 1)
+        grid.addWidget(self.modelNameSelect, 1, 1)
 
         grid.addWidget(ipRadio, 2, 0)
         grid.addWidget(ipWidget, 2, 1)
@@ -192,7 +194,7 @@ class ConfigWindow(QtGui.QMainWindow):
                 print "Selected device is", self.selectedDevice
                 break
 
-        modelNameSelect.setCurrentIndex(modelNameSelect.findText(self.selectedDevice[ConfigWindow.MODEL]))
+        self.modelNameSelect.setCurrentIndex(self.modelNameSelect.findText(self.selectedDevice[ConfigWindow.MODEL]))
 
         if self.selectedDevice[ConfigWindow.USES_IP]:
             ipRadio.setChecked(True)
@@ -219,7 +221,7 @@ class ConfigWindow(QtGui.QMainWindow):
         ourRect.moveCenter(screenCenter)
         self.move(ourRect.topLeft())
 
-    # Error-checking when self.friendlyNameEdit changes
+    # React when self.friendlyNameEdit changes
     def onNameInputChange(self):
         # Disallow whitespace
         if not self.noWhitespaceRegex.exactMatch(self.friendlyNameEdit.text()) and len(self.friendlyNameEdit.text()) > 0:
@@ -227,6 +229,16 @@ class ConfigWindow(QtGui.QMainWindow):
             self.friendlyNameEdit.setText(self.friendlyNameEdit.text()[:-1])
         # Check if modified from original
         if self.friendlyNameEdit.text() != self.selectedDevice[ConfigWindow.NAME]:
+            self.hasEditedCurrentDevice = True
+            self.saveBtn.setEnabled(True)
+        else:
+            self.hasEditedCurrentDevice = False
+            self.saveBtn.setEnabled(False)
+
+    # React when self.modelNameSelect changes
+    def onModelNameChange(self):
+        selectedModel = self.modelNameSelect.currentText()
+        if selectedModel != self.selectedDevice[ConfigWindow.MODEL]:
             self.hasEditedCurrentDevice = True
             self.saveBtn.setEnabled(True)
         else:
