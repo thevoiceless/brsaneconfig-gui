@@ -102,11 +102,31 @@ class ConfigWindow(QtGui.QMainWindow):
         group.addButton(nodeRadio)
         group.setExclusive(True)
 
-        ipEdit = QtGui.QLineEdit()
-        ipEdit.setInputMask("999.999.999.999; ")
+        # IP address, split into four 3-digit sections
+        validator = QtGui.QIntValidator(001, 999)
+        ipEdit1 = QtGui.QLineEdit()
+        ipEdit2 = QtGui.QLineEdit()
+        ipEdit3 = QtGui.QLineEdit()
+        ipEdit4 = QtGui.QLineEdit()
+        ipEdits = [ipEdit1, ipEdit2, ipEdit3, ipEdit4]
+        ipLayout = QtGui.QHBoxLayout()
+        ipLayout.setSpacing(0)
+
+        for i in range(4):
+            ipEdits[i].setValidator(validator)
+            ipEdits[i].setMaxLength(3)
+            ipLayout.addWidget(ipEdits[i])
+            if i != 3:
+                ipLayout.addWidget(QtGui.QLabel("."))
+
+        ipWidget = QtGui.QWidget()
+        ipWidget.setLayout(ipLayout)
+        ipWidget.setContentsMargins(0, 0, 0, 0)
+        ipWidget.layout().setContentsMargins(0, 0, 0, 0)
+
+        # Node name, prefixed with "BRN_"
         nodePrefix = QtGui.QLabel("BRN_")
         nodeEdit = QtGui.QLineEdit()
-
         nodeNameLayout = QtGui.QHBoxLayout()
         nodeNameLayout.setSpacing(0)
         nodeNameLayout.addWidget(nodePrefix)
@@ -128,7 +148,7 @@ class ConfigWindow(QtGui.QMainWindow):
         buttonsWidget.setContentsMargins(0, 0, 0, 0)
         buttonsWidget.layout().setContentsMargins(0, 0, 0, 0)
 
-        # Device info to the right of the device list
+        # Info for the selected device is displayed to the right of the device list
         grid = QtGui.QGridLayout()
         grid.setSpacing(10)
 
@@ -139,7 +159,7 @@ class ConfigWindow(QtGui.QMainWindow):
         grid.addWidget(modelNameSelect, 1, 1)
 
         grid.addWidget(ipRadio, 2, 0)
-        grid.addWidget(ipEdit, 2, 1)
+        grid.addWidget(ipWidget, 2, 1)
         grid.addWidget(nodeRadio, 3, 0)
         grid.addWidget(nodeNameWidget, 3, 1)
 
@@ -148,7 +168,8 @@ class ConfigWindow(QtGui.QMainWindow):
 
         mainHBox.addLayout(grid)
 
-        self.resize(450, self.minimumHeight())
+        # Resize and show
+        self.resize(self.minimumSizeHint().width(), self.minimumSizeHint().height())
         self.setWindowTitle(WINDOW_TITLE)
         self.center()
         self.show()
