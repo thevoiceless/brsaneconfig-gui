@@ -103,6 +103,7 @@ class ConfigWindow(QtGui.QMainWindow):
         group.setExclusive(True)
 
         ipEdit = QtGui.QLineEdit()
+        ipEdit.setInputMask("999.999.999.999; ")
         nodePrefix = QtGui.QLabel("BRN_")
         nodeEdit = QtGui.QLineEdit()
 
@@ -147,7 +148,7 @@ class ConfigWindow(QtGui.QMainWindow):
 
         mainHBox.addLayout(grid)
 
-        self.resize(450, 250)
+        self.resize(450, self.minimumHeight())
         self.setWindowTitle(WINDOW_TITLE)
         self.center()
         self.show()
