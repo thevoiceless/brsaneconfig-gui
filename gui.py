@@ -10,14 +10,29 @@ WINDOW_TITLE = 'brsaneconfig3'
 WIDTH_FUDGE = 30
 
 
+class BrotherDevice:
+    def __init__(self, info):
+        # Parse info
+        num, friendlyName, modelName, ipOrNode = info.split()
+        # Check if IP or node name is specified
+        self.usesIP = ipOrNode.startswith("I:")
+        self.devID = num
+        self.name = friendlyName
+        # Remove quotation marks surrounding the model name
+        self.model = modelName.replace('"', '')
+        # Remove prefixes
+        self.addr = ipOrNode.replace("I:", '').replace("N:BRN_", "")
+
+    def __str__(self):
+        return "devID: {}, name: {}, model: {}, addr: {} ({})".format(self.devID,
+                                                                      self.name,
+                                                                      self.model,
+                                                                      self.addr,
+                                                                      'IP' if self.usesIP else 'node')
+
+
 class ConfigWindow(QtGui.QMainWindow):
-    ID = 0
-    NAME = 1
-    MODEL = 2
-    ADDR = 3
-    USES_IP = 4
     HEADER = "Devices on network"
-    PREFIX = "BRN_"
 
     def __init__(self):
         # The super() method returns the parent object of the given class
@@ -47,7 +62,7 @@ class ConfigWindow(QtGui.QMainWindow):
         # Strip out blank lines from list of models
         modelNames = [item for item in output[0:headerLoc] if len(item) > 0]
         # Don't include the header in the user's devices
-        myPrintersInfo = output[headerLoc + 1:]
+        myDevicesInfo = output[headerLoc + 1:]
 
         # Populate self.supportedModels and set self.devicesList
         for model in modelNames:
@@ -61,19 +76,12 @@ class ConfigWindow(QtGui.QMainWindow):
         self.supportedModels.sort()
 
         # Populate self.myDevices
-        for printerInfo in myPrintersInfo:
-            num, friendlyName, modelName, ipOrNode = printerInfo.split()
-            # Check if IP or node name is specified
-            usesIP = ipOrNode.startswith("I:")
-            # Remove surrounding quotation marks and the 'I:' prefix
-            self.myDevices.append([num,
-                                   friendlyName,
-                                   modelName.replace('"', ''),
-                                   ipOrNode.replace("I:", '').replace("N:", ""),
-                                   usesIP])
+        for deviceInfo in myDevicesInfo:
+            device = BrotherDevice(deviceInfo)
+            self.myDevices.append(device)
 
         # self.deviceList contains only the names from self.myDevices
-        self.deviceList.addItems([device[ConfigWindow.NAME] for device in self.myDevices])
+        self.deviceList.addItems([d.name for d in self.myDevices])
         self.deviceList.setCurrentRow(0)
 
     def initUI(self):
@@ -139,8 +147,8 @@ class ConfigWindow(QtGui.QMainWindow):
         ipWidget.setContentsMargins(0, 0, 0, 0)
         ipWidget.layout().setContentsMargins(0, 0, 0, 0)
 
-        # Node name, prefixed with ConfigWindow.PREFIX
-        nodePrefix = QtGui.QLabel(ConfigWindow.PREFIX)
+        # Node name, user does not need to worry about the "BRN_" prefix
+        nodePrefix = QtGui.QLabel("BRN_")
         nodeEdit = QtGui.QLineEdit()
         nodeNameLayout = QtGui.QHBoxLayout()
         nodeNameLayout.setSpacing(0)
@@ -189,23 +197,24 @@ class ConfigWindow(QtGui.QMainWindow):
         self.friendlyNameEdit.setText(selectedName)
 
         for device in self.myDevices:
-            if device[ConfigWindow.NAME] == selectedName:
+            if device.name == selectedName:
                 self.selectedDevice = device
                 print "Selected device is", self.selectedDevice
                 break
 
-        self.modelNameSelect.setCurrentIndex(self.modelNameSelect.findText(self.selectedDevice[ConfigWindow.MODEL]))
+        # Set content of model name dropdown
+        self.modelNameSelect.setCurrentIndex(self.modelNameSelect.findText(self.selectedDevice.model))
 
-        if self.selectedDevice[ConfigWindow.USES_IP]:
+        # Populate IP or node name
+        if self.selectedDevice.usesIP:
             ipRadio.setChecked(True)
-            for textbox, segment in zip(ipEdits, self.selectedDevice[ConfigWindow.ADDR].split('.')):
+            for textbox, segment in zip(ipEdits, self.selectedDevice.addr.split('.')):
                 textbox.setText(segment)
             nodeNameWidget.setEnabled(False)
         else:
             nodeRadio.setChecked(True)
-            addr = self.selectedDevice[ConfigWindow.ADDR]
-            print "addr", addr
-            nodeEdit.setText(addr.replace(ConfigWindow.PREFIX, "", 1))
+            print "addr", self.selectedDevice.addr
+            nodeEdit.setText(self.selectedDevice.addr)
             ipWidget.setEnabled(False)
 
         # Resize and show
@@ -238,7 +247,7 @@ class ConfigWindow(QtGui.QMainWindow):
     # React when self.modelNameSelect changes
     def onModelNameChange(self):
         selectedModel = self.modelNameSelect.currentText()
-        if selectedModel != self.selectedDevice[ConfigWindow.MODEL]:
+        if selectedModel != self.selectedDevice.model:
             self.hasEditedCurrentDevice = True
             self.saveBtn.setEnabled(True)
         else:
