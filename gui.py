@@ -38,17 +38,24 @@ class ConfigWindow(QtGui.QMainWindow):
         # The super() method returns the parent object of the given class
         super(ConfigWindow, self).__init__()
 
+        # Data structures and variables
         self.supportedModels = []
         self.myDevices = []
         self.selectedDevice = []
         self.noWhitespaceRegex = QtCore.QRegExp('[^\s]+')
         self.hasEditedCurrentDevice = False
+        self.ipEdits = []
 
         # Interface elements
         self.deviceList = QtGui.QListWidget()
         self.friendlyNameEdit = QtGui.QLineEdit()
         self.modelNameSelect = QtGui.QComboBox()
-        self.saveBtn = None
+        self.saveBtn = QtGui.QPushButton("Save")
+        self.ipRadio = QtGui.QRadioButton("IP:")
+        self.nodeRadio = QtGui.QRadioButton("Node:")
+        self.ipWidget = QtGui.QWidget()
+        self.nodeEdit = QtGui.QLineEdit()
+        self.nodeNameWidget = QtGui.QWidget()
 
         self.gatherInfo()
         self.initUI()
@@ -119,8 +126,6 @@ class ConfigWindow(QtGui.QMainWindow):
 
         # IP address or node name, radio buttons
         group = QtGui.QButtonGroup()
-        self.ipRadio = QtGui.QRadioButton("IP:")
-        self.nodeRadio = QtGui.QRadioButton("Node:")
         group.addButton(self.ipRadio)
         group.addButton(self.nodeRadio)
         group.setExclusive(True)
@@ -135,22 +140,21 @@ class ConfigWindow(QtGui.QMainWindow):
         ipLayout = QtGui.QHBoxLayout()
         ipLayout.setSpacing(0)
 
-        for i in range(4):
-            self.ipEdits[i].setValidator(ipSegmentValidator)
-            self.ipEdits[i].setMaxLength(3)
-            self.ipEdits[i].setAlignment(QtCore.Qt.AlignCenter)
+        # Only allow 3 digits in each part of the IP
+        for i, textbox in enumerate(self.ipEdits):
+            textbox.setValidator(ipSegmentValidator)
+            textbox.setMaxLength(3)
+            textbox.setAlignment(QtCore.Qt.AlignCenter)
             ipLayout.addWidget(self.ipEdits[i])
             if i != 3:
                 ipLayout.addWidget(QtGui.QLabel("."))
 
-        self.ipWidget = QtGui.QWidget()
         self.ipWidget.setLayout(ipLayout)
         self.ipWidget.setContentsMargins(0, 0, 0, 0)
         self.ipWidget.layout().setContentsMargins(0, 0, 0, 0)
 
         # Node name, user does not need to worry about the "BRN_" prefix
         nodePrefix = QtGui.QLabel("BRN_")
-        self.nodeEdit = QtGui.QLineEdit()
         nodeNameLayout = QtGui.QHBoxLayout()
         nodeNameLayout.setSpacing(0)
         nodeNameLayout.addWidget(nodePrefix)
@@ -161,7 +165,6 @@ class ConfigWindow(QtGui.QMainWindow):
         self.nodeNameWidget.layout().setContentsMargins(0, 0, 0, 0)
 
         # "Save" and "delete" buttons
-        self.saveBtn = QtGui.QPushButton("Save")
         self.saveBtn.setEnabled(False)
         deleteButton = QtGui.QPushButton("Delete")
 
@@ -219,15 +222,19 @@ class ConfigWindow(QtGui.QMainWindow):
 
         # Populate IP or node name
         if self.selectedDevice.usesIP:
+            self.ipWidget.setEnabled(True)
             self.ipRadio.setChecked(True)
             for textbox, segment in zip(self.ipEdits, self.selectedDevice.addr.split('.')):
                 textbox.setText(segment)
             self.nodeNameWidget.setEnabled(False)
+            self.nodeEdit.setText("")
         else:
+            self.nodeNameWidget.setEnabled(True)
             self.nodeRadio.setChecked(True)
-            print "addr", self.selectedDevice.addr
             self.nodeEdit.setText(self.selectedDevice.addr)
             self.ipWidget.setEnabled(False)
+            for textbox in self.ipEdits:
+                textbox.setText("")
 
     # React when self.friendlyNameEdit changes
     def onNameInputChange(self):
@@ -255,9 +262,9 @@ class ConfigWindow(QtGui.QMainWindow):
 
     # React when a different device is selected in self.deviceList
     def onSelectedDeviceChange(self, row):
-        print "Selected row is now", row
-        print "Device at that index is", self.myDevices[row]
-        print "row", row
+        print "Device at row {} is {}".format(row, self.myDevices[row])
+        self.selectedDevice = self.myDevices[row]
+        self.updateFields()
 
 
 def main():
