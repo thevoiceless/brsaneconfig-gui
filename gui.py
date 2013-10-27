@@ -27,6 +27,25 @@ class BrotherDevice:
         return "devID: {}, name: {}, model: {}, addr: {} ({})".format(self.devID, self.name, self.model, self.addr,
                                                                       'IP' if self.usesIP else 'node')
 
+    @staticmethod
+    def addDevice(device):
+        try:
+            output = subprocess.check_output(["brsaneconfig3", "-a",
+                                              "name={}".format(device.name),
+                                              "model={}".format(device.model),
+                                              "ip={}".format(device.addr) if device.usesIP else "nodename=BRN_{}".format(device.addr)])
+        except subprocess.CalledProcessError:
+            # TODO: Handle this
+            pass
+
+    @staticmethod
+    def removeDevice(name):
+        try:
+            output = subprocess.check_output(["brsaneconfig3", "-r", name])
+        except subprocess.CalledProcessError:
+            # TODO: Handle this
+            pass
+
 
 class ConfigWindow(QtGui.QMainWindow):
     HEADER = "Devices on network"
@@ -38,7 +57,7 @@ class ConfigWindow(QtGui.QMainWindow):
         # Data structures and variables
         self.supportedModels = []
         self.myDevices = []
-        self.selectedDevice = []
+        self.currentDevice = []
         self.noWhitespaceRegex = QtCore.QRegExp('[^\s]+')
         self.hasEditedCurrentDevice = False
         self.ipEdits = []
@@ -58,7 +77,11 @@ class ConfigWindow(QtGui.QMainWindow):
         self.initUI()
 
     def gatherInfo(self):
-        output = subprocess.check_output(["brsaneconfig3", "-q"]).splitlines()
+        try:
+            output = subprocess.check_output(["brsaneconfig3", "-q"]).splitlines()
+        except subprocess.CalledProcessError:
+            # TODO: Handle this
+            pass
 
         # Get index of the header that separates the list of supported models from the user's devices
         headerLoc = output.index(ConfigWindow.HEADER)
@@ -95,7 +118,7 @@ class ConfigWindow(QtGui.QMainWindow):
         deviceListPanel.addWidget(self.deviceList)
         addDeviceBtn = QtGui.QPushButton("Add New Device")
         deviceListPanel.addWidget(addDeviceBtn)
-        self.deviceList.currentRowChanged.connect(self.onSelectedDeviceChange)
+        self.deviceList.currentItemChanged.connect(self.onSelectedDeviceChange)
 
         # Main layout
         mainHBox = QtGui.QHBoxLayout()
@@ -128,6 +151,7 @@ class ConfigWindow(QtGui.QMainWindow):
         group.setExclusive(True)
 
         # IP address, split into four 3-digit sections
+        # TODO: React to changes
         ipSegmentValidator = QtGui.QIntValidator(001, 999)
         ipEdit1 = QtGui.QLineEdit()
         ipEdit2 = QtGui.QLineEdit()
@@ -142,15 +166,16 @@ class ConfigWindow(QtGui.QMainWindow):
             textbox.setValidator(ipSegmentValidator)
             textbox.setMaxLength(3)
             textbox.setAlignment(QtCore.Qt.AlignCenter)
-            ipLayout.addWidget(self.ipEdits[i])
-            if i != 3:
+            if i > 0:
                 ipLayout.addWidget(QtGui.QLabel("."))
+            ipLayout.addWidget(self.ipEdits[i])
 
         self.ipWidget.setLayout(ipLayout)
         self.ipWidget.setContentsMargins(0, 0, 0, 0)
         self.ipWidget.layout().setContentsMargins(0, 0, 0, 0)
 
         # Node name, user does not need to worry about the "BRN_" prefix
+        # TODO: React to changes
         nodePrefix = QtGui.QLabel("BRN_")
         nodeNameLayout = QtGui.QHBoxLayout()
         nodeNameLayout.setSpacing(0)
@@ -162,6 +187,7 @@ class ConfigWindow(QtGui.QMainWindow):
         self.nodeNameWidget.layout().setContentsMargins(0, 0, 0, 0)
 
         # "Save" and "delete" buttons
+        # TODO: Attach actions
         self.saveBtn.setEnabled(False)
         deleteButton = QtGui.QPushButton("Delete")
 
@@ -194,9 +220,9 @@ class ConfigWindow(QtGui.QMainWindow):
         mainHBox.addLayout(grid)
 
         # Get info about currently-selected device and populate fields
-        self.selectedDevice = self.myDevices[self.deviceList.currentRow()]
+        self.currentDevice = self.myDevices[self.deviceList.currentRow()]
         self.updateFields()
-        print "Initially selected device is", self.selectedDevice
+        print "Initially selected device is", self.currentDevice
 
         # Resize and show
         self.resize(self.minimumSizeHint().width(), self.minimumSizeHint().height())
@@ -212,23 +238,23 @@ class ConfigWindow(QtGui.QMainWindow):
         self.move(ourRect.topLeft())
 
     def updateFields(self):
-        self.friendlyNameEdit.setText(self.selectedDevice.name)
+        self.friendlyNameEdit.setText(self.currentDevice.name)
 
         # Set content of model name dropdown
-        self.modelNameSelect.setCurrentIndex(self.modelNameSelect.findText(self.selectedDevice.model))
+        self.modelNameSelect.setCurrentIndex(self.modelNameSelect.findText(self.currentDevice.model))
 
         # Populate IP or node name
-        if self.selectedDevice.usesIP:
+        if self.currentDevice.usesIP:
             self.ipWidget.setEnabled(True)
             self.ipRadio.setChecked(True)
-            for textbox, segment in zip(self.ipEdits, self.selectedDevice.addr.split('.')):
+            for textbox, segment in zip(self.ipEdits, self.currentDevice.addr.split('.')):
                 textbox.setText(segment)
             self.nodeNameWidget.setEnabled(False)
             self.nodeEdit.setText("")
         else:
             self.nodeNameWidget.setEnabled(True)
             self.nodeRadio.setChecked(True)
-            self.nodeEdit.setText(self.selectedDevice.addr)
+            self.nodeEdit.setText(self.currentDevice.addr)
             self.ipWidget.setEnabled(False)
             for textbox in self.ipEdits:
                 textbox.setText("")
@@ -240,7 +266,7 @@ class ConfigWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.warning(None, "Error", "The name cannot contain whitespace.")
             self.friendlyNameEdit.setText(self.friendlyNameEdit.text()[:-1])
         # Check if modified from original
-        if self.friendlyNameEdit.text() != self.selectedDevice.name:
+        if self.friendlyNameEdit.text() != self.currentDevice.name:
             self.hasEditedCurrentDevice = True
             self.saveBtn.setEnabled(True)
         else:
@@ -250,7 +276,7 @@ class ConfigWindow(QtGui.QMainWindow):
     # React when self.modelNameSelect changes
     def onModelNameChange(self):
         selectedModel = self.modelNameSelect.currentText()
-        if selectedModel != self.selectedDevice.model:
+        if selectedModel != self.currentDevice.model:
             self.hasEditedCurrentDevice = True
             self.saveBtn.setEnabled(True)
         else:
@@ -258,21 +284,41 @@ class ConfigWindow(QtGui.QMainWindow):
             self.saveBtn.setEnabled(False)
 
     # React when a different device is selected in self.deviceList
-    def onSelectedDeviceChange(self, row):
+    # TODO: Don't save if the name is empty
+    def onSelectedDeviceChange(self, currentItem, previousItem):
         if self.hasEditedCurrentDevice:
-            saveChanges = QtGui.QMessageBox.question(self, "", "Save changes to current device?",
+            saveChanges = QtGui.QMessageBox.question(None, "", "Save changes to current device?",
                                                      QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
-            # TODO: Save changes and update UI accordingly
             if saveChanges:
-                pass
-            else:
-                pass
-            self.hasEditedCurrentDevice = False
-            self.saveBtn.setEnabled(False)
+                BrotherDevice.removeDevice(self.currentDevice.name)
+                self.updateCurrentDevice()
+                BrotherDevice.addDevice(self.currentDevice)
+                # Apparently changing the underlying list isn't enough, must manually update the label
+                previousItem.setText(self.friendlyNameEdit.text())
 
-        self.selectedDevice = self.myDevices[row]
+        self.hasEditedCurrentDevice = False
+        self.saveBtn.setEnabled(False)
+
+        row = self.deviceList.currentRow()
+        self.currentDevice = self.myDevices[row]
         self.updateFields()
         print "Device at row {} is {}".format(row, self.myDevices[row])
+
+    # Update the properties of self.currentDevice based on the entered values
+    def updateCurrentDevice(self):
+        self.currentDevice.name = self.friendlyNameEdit.text()
+        self.currentDevice.model = self.modelNameSelect.currentText()
+        if self.ipRadio.isChecked():
+            self.currentDevice.usesIP = True
+            ip = ''
+            for i, textbox in enumerate(self.ipEdits):
+                if i > 0:
+                    ip += "."
+                ip += textbox.text().rightJustified(3)
+            self.currentDevice.addr = ip
+        else:
+            self.currentDevice.usesIP = False
+            self.currentDevice.addr = self.nodeEdit.text()
 
 
 def main():
