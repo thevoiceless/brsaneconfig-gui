@@ -119,10 +119,10 @@ class ConfigWindow(QtGui.QMainWindow):
 
         # IP address or node name, radio buttons
         group = QtGui.QButtonGroup()
-        ipRadio = QtGui.QRadioButton("IP:")
-        nodeRadio = QtGui.QRadioButton("Node:")
-        group.addButton(ipRadio)
-        group.addButton(nodeRadio)
+        self.ipRadio = QtGui.QRadioButton("IP:")
+        self.nodeRadio = QtGui.QRadioButton("Node:")
+        group.addButton(self.ipRadio)
+        group.addButton(self.nodeRadio)
         group.setExclusive(True)
 
         # IP address, split into four 3-digit sections
@@ -131,34 +131,34 @@ class ConfigWindow(QtGui.QMainWindow):
         ipEdit2 = QtGui.QLineEdit()
         ipEdit3 = QtGui.QLineEdit()
         ipEdit4 = QtGui.QLineEdit()
-        ipEdits = [ipEdit1, ipEdit2, ipEdit3, ipEdit4]
+        self.ipEdits = [ipEdit1, ipEdit2, ipEdit3, ipEdit4]
         ipLayout = QtGui.QHBoxLayout()
         ipLayout.setSpacing(0)
 
         for i in range(4):
-            ipEdits[i].setValidator(ipSegmentValidator)
-            ipEdits[i].setMaxLength(3)
-            ipEdits[i].setAlignment(QtCore.Qt.AlignCenter)
-            ipLayout.addWidget(ipEdits[i])
+            self.ipEdits[i].setValidator(ipSegmentValidator)
+            self.ipEdits[i].setMaxLength(3)
+            self.ipEdits[i].setAlignment(QtCore.Qt.AlignCenter)
+            ipLayout.addWidget(self.ipEdits[i])
             if i != 3:
                 ipLayout.addWidget(QtGui.QLabel("."))
 
-        ipWidget = QtGui.QWidget()
-        ipWidget.setLayout(ipLayout)
-        ipWidget.setContentsMargins(0, 0, 0, 0)
-        ipWidget.layout().setContentsMargins(0, 0, 0, 0)
+        self.ipWidget = QtGui.QWidget()
+        self.ipWidget.setLayout(ipLayout)
+        self.ipWidget.setContentsMargins(0, 0, 0, 0)
+        self.ipWidget.layout().setContentsMargins(0, 0, 0, 0)
 
         # Node name, user does not need to worry about the "BRN_" prefix
         nodePrefix = QtGui.QLabel("BRN_")
-        nodeEdit = QtGui.QLineEdit()
+        self.nodeEdit = QtGui.QLineEdit()
         nodeNameLayout = QtGui.QHBoxLayout()
         nodeNameLayout.setSpacing(0)
         nodeNameLayout.addWidget(nodePrefix)
-        nodeNameLayout.addWidget(nodeEdit)
-        nodeNameWidget = QtGui.QWidget()
-        nodeNameWidget.setLayout(nodeNameLayout)
-        nodeNameWidget.setContentsMargins(0, 0, 0, 0)
-        nodeNameWidget.layout().setContentsMargins(0, 0, 0, 0)
+        nodeNameLayout.addWidget(self.nodeEdit)
+        self.nodeNameWidget = QtGui.QWidget()
+        self.nodeNameWidget.setLayout(nodeNameLayout)
+        self.nodeNameWidget.setContentsMargins(0, 0, 0, 0)
+        self.nodeNameWidget.layout().setContentsMargins(0, 0, 0, 0)
 
         # "Save" and "delete" buttons
         self.saveBtn = QtGui.QPushButton("Save")
@@ -183,10 +183,10 @@ class ConfigWindow(QtGui.QMainWindow):
         grid.addWidget(modelName, 1, 0)
         grid.addWidget(self.modelNameSelect, 1, 1)
 
-        grid.addWidget(ipRadio, 2, 0)
-        grid.addWidget(ipWidget, 2, 1)
-        grid.addWidget(nodeRadio, 3, 0)
-        grid.addWidget(nodeNameWidget, 3, 1)
+        grid.addWidget(self.ipRadio, 2, 0)
+        grid.addWidget(self.ipWidget, 2, 1)
+        grid.addWidget(self.nodeRadio, 3, 0)
+        grid.addWidget(self.nodeNameWidget, 3, 1)
 
         grid.setRowStretch(4, 1)
         grid.addWidget(buttonsWidget, 5, 0, 1, 2)
@@ -194,29 +194,9 @@ class ConfigWindow(QtGui.QMainWindow):
         mainHBox.addLayout(grid)
 
         # Get info about currently-selected device and populate fields
-        selectedName = self.deviceList.currentItem().text()
-        self.friendlyNameEdit.setText(selectedName)
-
-        for device in self.myDevices:
-            if device.name == selectedName:
-                self.selectedDevice = device
-                print "Selected device is", self.selectedDevice
-                break
-
-        # Set content of model name dropdown
-        self.modelNameSelect.setCurrentIndex(self.modelNameSelect.findText(self.selectedDevice.model))
-
-        # Populate IP or node name
-        if self.selectedDevice.usesIP:
-            ipRadio.setChecked(True)
-            for textbox, segment in zip(ipEdits, self.selectedDevice.addr.split('.')):
-                textbox.setText(segment)
-            nodeNameWidget.setEnabled(False)
-        else:
-            nodeRadio.setChecked(True)
-            print "addr", self.selectedDevice.addr
-            nodeEdit.setText(self.selectedDevice.addr)
-            ipWidget.setEnabled(False)
+        self.selectedDevice = self.myDevices[self.deviceList.currentRow()]
+        self.updateFields()
+        print "Initially selected device is", self.selectedDevice
 
         # Resize and show
         self.resize(self.minimumSizeHint().width(), self.minimumSizeHint().height())
@@ -231,6 +211,24 @@ class ConfigWindow(QtGui.QMainWindow):
         ourRect.moveCenter(screenCenter)
         self.move(ourRect.topLeft())
 
+    def updateFields(self):
+        self.friendlyNameEdit.setText(self.selectedDevice.name)
+
+        # Set content of model name dropdown
+        self.modelNameSelect.setCurrentIndex(self.modelNameSelect.findText(self.selectedDevice.model))
+
+        # Populate IP or node name
+        if self.selectedDevice.usesIP:
+            self.ipRadio.setChecked(True)
+            for textbox, segment in zip(self.ipEdits, self.selectedDevice.addr.split('.')):
+                textbox.setText(segment)
+            self.nodeNameWidget.setEnabled(False)
+        else:
+            self.nodeRadio.setChecked(True)
+            print "addr", self.selectedDevice.addr
+            self.nodeEdit.setText(self.selectedDevice.addr)
+            self.ipWidget.setEnabled(False)
+
     # React when self.friendlyNameEdit changes
     def onNameInputChange(self):
         # Disallow whitespace
@@ -238,7 +236,7 @@ class ConfigWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.warning(None, "Error", "The name cannot contain whitespace.")
             self.friendlyNameEdit.setText(self.friendlyNameEdit.text()[:-1])
         # Check if modified from original
-        if self.friendlyNameEdit.text() != self.selectedDevice[ConfigWindow.NAME]:
+        if self.friendlyNameEdit.text() != self.selectedDevice.name:
             self.hasEditedCurrentDevice = True
             self.saveBtn.setEnabled(True)
         else:
@@ -257,6 +255,8 @@ class ConfigWindow(QtGui.QMainWindow):
 
     # React when a different device is selected in self.deviceList
     def onSelectedDeviceChange(self, row):
+        print "Selected row is now", row
+        print "Device at that index is", self.myDevices[row]
         print "row", row
 
 
