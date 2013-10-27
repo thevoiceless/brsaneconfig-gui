@@ -91,6 +91,7 @@ class ConfigWindow(QtGui.QMainWindow):
         deviceListPanel.addWidget(self.deviceList)
         addDeviceBtn = QtGui.QPushButton("Add New Device")
         deviceListPanel.addWidget(addDeviceBtn)
+        self.deviceList.currentRowChanged.connect(self.onSelectedDeviceChange)
 
         # Main layout
         mainHBox = QtGui.QHBoxLayout()
@@ -253,6 +254,10 @@ class ConfigWindow(QtGui.QMainWindow):
         else:
             self.hasEditedCurrentDevice = False
             self.saveBtn.setEnabled(False)
+
+    # React when a different device is selected in self.deviceList
+    def onSelectedDeviceChange(self, row):
+        print "row", row
 
 
 def main():
