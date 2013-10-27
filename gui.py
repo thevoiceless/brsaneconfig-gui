@@ -24,10 +24,7 @@ class BrotherDevice:
         self.addr = ipOrNode.replace("I:", '').replace("N:BRN_", "")
 
     def __str__(self):
-        return "devID: {}, name: {}, model: {}, addr: {} ({})".format(self.devID,
-                                                                      self.name,
-                                                                      self.model,
-                                                                      self.addr,
+        return "devID: {}, name: {}, model: {}, addr: {} ({})".format(self.devID, self.name, self.model, self.addr,
                                                                       'IP' if self.usesIP else 'node')
 
 
@@ -77,7 +74,7 @@ class ConfigWindow(QtGui.QMainWindow):
                 num, name = model.split()
                 # Remove surrounding quotation marks
                 self.supportedModels.append(name.replace('"', ''))
-            except:
+            except ValueError:
                 #print "Ignoring model {}, no model name given".format(num)
                 continue
         self.supportedModels.sort()
@@ -262,9 +259,20 @@ class ConfigWindow(QtGui.QMainWindow):
 
     # React when a different device is selected in self.deviceList
     def onSelectedDeviceChange(self, row):
-        print "Device at row {} is {}".format(row, self.myDevices[row])
+        if self.hasEditedCurrentDevice:
+            saveChanges = QtGui.QMessageBox.question(self, "", "Save changes to current device?",
+                                                     QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+            # TODO: Save changes and update UI accordingly
+            if saveChanges:
+                pass
+            else:
+                pass
+            self.hasEditedCurrentDevice = False
+            self.saveBtn.setEnabled(False)
+
         self.selectedDevice = self.myDevices[row]
         self.updateFields()
+        print "Device at row {} is {}".format(row, self.myDevices[row])
 
 
 def main():
@@ -273,7 +281,7 @@ def main():
 
     window = ConfigWindow()
 
-    # Because 'exec' is a Python keyword, 'exec_' was used instead
+    # Because 'exec' is a Python keyword, Qt uses 'exec_' instead
     sys.exit(app.exec_())
 
 
