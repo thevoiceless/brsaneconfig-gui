@@ -149,9 +149,10 @@ class ConfigWindow(QtGui.QMainWindow):
         group.addButton(self.ipRadio)
         group.addButton(self.nodeRadio)
         group.setExclusive(True)
+        self.ipRadio.toggled.connect(self.onRadioToggle)
+        self.nodeRadio.toggled.connect(self.onRadioToggle)
 
         # IP address, split into four 3-digit sections
-        # TODO: React to changes
         ipSegmentValidator = QtGui.QIntValidator(001, 999)
         ipEdit1 = QtGui.QLineEdit()
         ipEdit2 = QtGui.QLineEdit()
@@ -176,7 +177,6 @@ class ConfigWindow(QtGui.QMainWindow):
         self.ipWidget.layout().setContentsMargins(0, 0, 0, 0)
 
         # Node name, user does not need to worry about the "BRN_" prefix
-        # TODO: React to changes
         nodePrefix = QtGui.QLabel("BRN_")
         nodeNameLayout = QtGui.QHBoxLayout()
         nodeNameLayout.setSpacing(0)
@@ -186,6 +186,7 @@ class ConfigWindow(QtGui.QMainWindow):
         self.nodeNameWidget.setLayout(nodeNameLayout)
         self.nodeNameWidget.setContentsMargins(0, 0, 0, 0)
         self.nodeNameWidget.layout().setContentsMargins(0, 0, 0, 0)
+        self.nodeEdit.textEdited.connect(self.onNodeChange)
 
         # "Save" and "delete" buttons
         # TODO: Attach actions
@@ -267,6 +268,7 @@ class ConfigWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.warning(None, "Error", "The name cannot contain whitespace.")
             self.friendlyNameEdit.setText(self.friendlyNameEdit.text()[:-1])
         # Check if modified from original
+        # TODO: Refactor these lines out of this and the other callbacks
         if self.friendlyNameEdit.text() != self.currentDevice.name:
             self.hasEditedCurrentDevice = True
             self.saveBtn.setEnabled(True)
@@ -305,6 +307,30 @@ class ConfigWindow(QtGui.QMainWindow):
         self.updateFields()
         print "Device at row {} is {}".format(row, self.myDevices[row])
 
+    # React when address type changes
+    def onRadioToggle(self, isChecked):
+        if self.ipRadio.isChecked():
+            if not self.currentDevice.usesIP:
+                self.hasEditedCurrentDevice = True
+                self.saveBtn.setEnabled(True)
+            else:
+                self.hasEditedCurrentDevice = False
+                self.saveBtn.setEnabled(False)
+            self.ipWidget.setEnabled(True)
+            self.nodeNameWidget.setEnabled(False)
+        elif self.nodeRadio.isChecked():
+            if self.currentDevice.usesIP:
+                self.hasEditedCurrentDevice = True
+                self.saveBtn.setEnabled(True)
+            else:
+                self.hasEditedCurrentDevice = False
+                self.saveBtn.setEnabled(False)
+            self.ipWidget.setEnabled(False)
+            self.nodeNameWidget.setEnabled(True)
+        else:
+            self.hasEditedCurrentDevice = False
+            self.saveBtn.setEnabled(False)
+
     # React when IP address changes
     def onIPChange(self):
         ip = ''
@@ -312,8 +338,20 @@ class ConfigWindow(QtGui.QMainWindow):
             if i > 0:
                 ip += "."
             ip += textbox.text().rightJustified(3, QtCore.QChar('0'))
-        print "ip is", ip
         if self.currentDevice.addr != ip:
+            self.hasEditedCurrentDevice = True
+            self.saveBtn.setEnabled(True)
+        else:
+            self.hasEditedCurrentDevice = False
+            self.saveBtn.setEnabled(False)
+
+    # React to node name changes
+    def onNodeChange(self):
+        # Disallow whitespace
+        if not self.noWhitespaceRegex.exactMatch(self.nodeEdit.text()) and len(self.nodeEdit.text()) > 0:
+            QtGui.QMessageBox.warning(None, "Error", "The node name cannot contain whitespace.")
+            self.nodeEdit.setText(self.nodeEdit.text()[:-1])
+        if self.currentDevice.addr != self.nodeEdit.text():
             self.hasEditedCurrentDevice = True
             self.saveBtn.setEnabled(True)
         else:
