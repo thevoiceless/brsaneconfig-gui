@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 
-import sys
-import subprocess
+import sys, subprocess
 from PyQt4 import QtGui, QtCore
 
 
@@ -28,23 +27,34 @@ class BrotherDevice:
                                                                       'IP' if self.usesIP else 'node')
 
     @staticmethod
+    def queryDevices():
+        try:
+            output = subprocess.check_output(["brsaneconfig3", "-q"]).splitlines()
+            return output
+        except subprocess.CalledProcessError as e:
+            QtGui.QMessageBox.critical(None, "Error", "Could not gather list of devices.\n" + e.output)
+            QtGui.QApplication.exit(e.returncode)
+
+    @staticmethod
     def addDevice(device):
         try:
             output = subprocess.check_output(["brsaneconfig3", "-a",
                                               "name={}".format(device.name),
                                               "model={}".format(device.model),
                                               "ip={}".format(device.addr) if device.usesIP else "nodename=BRN_{}".format(device.addr)])
-        except subprocess.CalledProcessError:
-            # TODO: Handle this
-            pass
+            return output
+        except subprocess.CalledProcessError as e:
+            QtGui.QMessageBox.critical(None, "Error", "Could not add device.\n" + e.output)
+            QtGui.QApplication.exit(e.returncode)
 
     @staticmethod
     def removeDevice(name):
         try:
             output = subprocess.check_output(["brsaneconfig3", "-r", name])
-        except subprocess.CalledProcessError:
-            # TODO: Handle this
-            pass
+            return output
+        except subprocess.CalledProcessError as e:
+            QtGui.QMessageBox.critical(None, "Error", "Could not remove device.\n" + e.output)
+            QtGui.QApplication.exit(e.returncode)
 
 
 class ConfigWindow(QtGui.QMainWindow):
@@ -77,11 +87,7 @@ class ConfigWindow(QtGui.QMainWindow):
         self.initUI()
 
     def gatherInfo(self):
-        try:
-            output = subprocess.check_output(["brsaneconfig3", "-q"]).splitlines()
-        except subprocess.CalledProcessError:
-            # TODO: Handle this
-            pass
+        output = BrotherDevice.queryDevices()
 
         # Get index of the header that separates the list of supported models from the user's devices
         headerLoc = output.index(ConfigWindow.HEADER)
