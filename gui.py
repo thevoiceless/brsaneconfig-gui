@@ -166,6 +166,7 @@ class ConfigWindow(QtGui.QMainWindow):
             textbox.setValidator(ipSegmentValidator)
             textbox.setMaxLength(3)
             textbox.setAlignment(QtCore.Qt.AlignCenter)
+            textbox.textEdited.connect(self.onIPChange)
             if i > 0:
                 ipLayout.addWidget(QtGui.QLabel("."))
             ipLayout.addWidget(self.ipEdits[i])
@@ -304,6 +305,21 @@ class ConfigWindow(QtGui.QMainWindow):
         self.updateFields()
         print "Device at row {} is {}".format(row, self.myDevices[row])
 
+    # React when IP address changes
+    def onIPChange(self):
+        ip = ''
+        for i, textbox in enumerate(self.ipEdits):
+            if i > 0:
+                ip += "."
+            ip += textbox.text().rightJustified(3, QtCore.QChar('0'))
+        print "ip is", ip
+        if self.currentDevice.addr != ip:
+            self.hasEditedCurrentDevice = True
+            self.saveBtn.setEnabled(True)
+        else:
+            self.hasEditedCurrentDevice = False
+            self.saveBtn.setEnabled(False)
+
     # Update the properties of self.currentDevice based on the entered values
     def updateCurrentDevice(self):
         self.currentDevice.name = self.friendlyNameEdit.text()
@@ -314,7 +330,7 @@ class ConfigWindow(QtGui.QMainWindow):
             for i, textbox in enumerate(self.ipEdits):
                 if i > 0:
                     ip += "."
-                ip += textbox.text().rightJustified(3)
+                ip += textbox.text().rightJustified(3, QtCore.QChar('0'))
             self.currentDevice.addr = ip
         else:
             self.currentDevice.usesIP = False
