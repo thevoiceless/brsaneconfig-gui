@@ -159,6 +159,7 @@ class ConfigWindow(QtGui.QMainWindow):
         # Device list on left
         deviceListPanel = QtGui.QVBoxLayout()
         deviceListPanel.addWidget(self.deviceList)
+        # TODO: Attach action, possibly pre-populate name
         addDeviceBtn = QtGui.QPushButton("Add New Device")
         deviceListPanel.addWidget(addDeviceBtn)
         self.deviceList.currentItemChanged.connect(self.onSelectedDeviceChange)
@@ -235,6 +236,7 @@ class ConfigWindow(QtGui.QMainWindow):
         # TODO: Attach actions
         self.saveBtn.setEnabled(False)
         deleteButton = QtGui.QPushButton("Delete")
+        self.saveBtn.clicked.connect(self.saveCurrentDevice)
 
         buttonsLayout = QtGui.QHBoxLayout()
         buttonsLayout.addWidget(deleteButton)
@@ -304,6 +306,35 @@ class ConfigWindow(QtGui.QMainWindow):
             for textbox in self.ipEdits:
                 textbox.setText("")
 
+    # Common save operations
+    def saveHelper(self):
+        BrotherDevice.removeDevice(self.currentDevice.name)
+        self.updateCurrentDevice()
+        BrotherDevice.addDevice(self.currentDevice)
+        self.hasEditedCurrentDevice = False
+        self.saveBtn.setEnabled(False)
+
+    # Save device
+    # Apparently changing the data backing the QListWidget isn't enough, must manually update the label
+    def saveCurrentDevice(self):
+        self.saveHelper()
+        self.deviceList.currentItem().setText(self.currentDevice.name)
+
+    # React when a different device is selected in self.deviceList
+    # TODO: Don't save if the name is empty
+    def onSelectedDeviceChange(self, currentItem, previousItem):
+        if self.hasEditedCurrentDevice:
+            saveChanges = QtGui.QMessageBox.question(None, "", "Save changes to current device?",
+                                                     QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+            if saveChanges:
+                self.saveHelper()
+                previousItem.setText(self.currentDevice.name)
+
+        row = self.deviceList.currentRow()
+        self.currentDevice = self.myDevices[row]
+        self.updateFields()
+        print "Device at row {} is {}".format(row, self.myDevices[row])
+
     # React when self.friendlyNameEdit changes
     def onNameInputChange(self):
         # Disallow whitespace
@@ -328,27 +359,6 @@ class ConfigWindow(QtGui.QMainWindow):
         else:
             self.hasEditedCurrentDevice = False
             self.saveBtn.setEnabled(False)
-
-    # React when a different device is selected in self.deviceList
-    # TODO: Don't save if the name is empty
-    def onSelectedDeviceChange(self, currentItem, previousItem):
-        if self.hasEditedCurrentDevice:
-            saveChanges = QtGui.QMessageBox.question(None, "", "Save changes to current device?",
-                                                     QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
-            if saveChanges:
-                BrotherDevice.removeDevice(self.currentDevice.name)
-                self.updateCurrentDevice()
-                BrotherDevice.addDevice(self.currentDevice)
-                # Apparently changing the underlying list isn't enough, must manually update the label
-                previousItem.setText(self.friendlyNameEdit.text())
-
-        self.hasEditedCurrentDevice = False
-        self.saveBtn.setEnabled(False)
-
-        row = self.deviceList.currentRow()
-        self.currentDevice = self.myDevices[row]
-        self.updateFields()
-        print "Device at row {} is {}".format(row, self.myDevices[row])
 
     # React when address type changes
     def onRadioToggle(self, isChecked):
