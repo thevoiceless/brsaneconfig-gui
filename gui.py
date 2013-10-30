@@ -29,11 +29,24 @@ class BrotherDevice:
     @staticmethod
     def queryDevices():
         try:
-            output = subprocess.check_output(["brsaneconfig3", "-q"]).splitlines()
-            return output
+            output = subprocess.check_output(["brsaneconfig3", "-q"])
+            # brsaneconfig3 does not return nonzero exit code even when given bad params, prints usage text instead
+            if "USAGE" in output:
+                raise RuntimeError("Invalid output when querying devices.")
+            return output.splitlines()
+        except RuntimeError as e:
+            QtGui.QMessageBox.critical(None, "Error", e.message)
+            sys.exit(1)
+        # The rest of these exceptions are what *should* be raised
         except subprocess.CalledProcessError as e:
             QtGui.QMessageBox.critical(None, "Error", "Could not gather list of devices.\n" + e.output)
-            QtGui.QApplication.exit(e.returncode)
+            sys.exit(e.returncode)
+        except OSError as e:
+            QtGui.QMessageBox.critical(None, "Error", "Invalid command.\n" + e.strerror)
+            sys.exit(e.errno)
+        except ValueError as e:
+            QtGui.QMessageBox.critical(None, "Error", "Invalid arguments passed to Popen.")
+            sys.exit(1)
 
     @staticmethod
     def addDevice(device):
@@ -42,19 +55,43 @@ class BrotherDevice:
                                               "name={}".format(device.name),
                                               "model={}".format(device.model),
                                               "ip={}".format(device.addr) if device.usesIP else "nodename=BRN_{}".format(device.addr)])
+            # There should be no output
+            if len(output) > 0:
+                raise RuntimeError("Error adding device.")
             return output
+        except RuntimeError as e:
+            QtGui.QMessageBox.critical(None, "Error", e.message)
+            sys.exit(1)
         except subprocess.CalledProcessError as e:
             QtGui.QMessageBox.critical(None, "Error", "Could not add device.\n" + e.output)
-            QtGui.QApplication.exit(e.returncode)
+            sys.exit(e.returncode)
+        except OSError as e:
+            QtGui.QMessageBox.critical(None, "Error", "Invalid command.\n" + e.strerror)
+            sys.exit(e.errno)
+        except ValueError as e:
+            QtGui.QMessageBox.critical(None, "Error", "Invalid arguments passed to Popen.")
+            sys.exit(1)
 
     @staticmethod
     def removeDevice(name):
         try:
             output = subprocess.check_output(["brsaneconfig3", "-r", name])
+            # There should be no output
+            if len(output) > 0:
+                raise RuntimeError("Error removing device.")
             return output
+        except RuntimeError as e:
+            QtGui.QMessageBox.critical(None, "Error", e.message)
+            sys.exit(1)
         except subprocess.CalledProcessError as e:
             QtGui.QMessageBox.critical(None, "Error", "Could not remove device.\n" + e.output)
-            QtGui.QApplication.exit(e.returncode)
+            sys.exit(e.returncode)
+        except OSError as e:
+            QtGui.QMessageBox.critical(None, "Error", "Invalid command.\n" + e.strerror)
+            sys.exit(e.errno)
+        except ValueError as e:
+            QtGui.QMessageBox.critical(None, "Error", "Invalid arguments passed to Popen.")
+            sys.exit(1)
 
 
 class ConfigWindow(QtGui.QMainWindow):
