@@ -306,6 +306,15 @@ class ConfigWindow(QtGui.QMainWindow):
             for textbox in self.ipEdits:
                 textbox.setText("")
 
+    # If the params are not equal, the current device has been edited
+    def hasEditedIfNotEqual(self, thing1, thing2):
+        if thing1 != thing2:
+            self.hasEditedCurrentDevice = True
+            self.saveBtn.setEnabled(True)
+        else:
+            self.hasEditedCurrentDevice = False
+            self.saveBtn.setEnabled(False)
+
     # Common save operations
     def saveHelper(self):
         BrotherDevice.removeDevice(self.currentDevice.name)
@@ -342,23 +351,12 @@ class ConfigWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.warning(None, "Error", "The name cannot contain whitespace.")
             self.friendlyNameEdit.setText(self.friendlyNameEdit.text()[:-1])
         # Check if modified from original
-        # TODO: Refactor these lines out of this and the other callbacks
-        if self.friendlyNameEdit.text() != self.currentDevice.name:
-            self.hasEditedCurrentDevice = True
-            self.saveBtn.setEnabled(True)
-        else:
-            self.hasEditedCurrentDevice = False
-            self.saveBtn.setEnabled(False)
+        self.hasEditedIfNotEqual(self.friendlyNameEdit.text(), self.currentDevice.name)
 
     # React when self.modelNameSelect changes
     def onModelNameChange(self):
         selectedModel = self.modelNameSelect.currentText()
-        if selectedModel != self.currentDevice.model:
-            self.hasEditedCurrentDevice = True
-            self.saveBtn.setEnabled(True)
-        else:
-            self.hasEditedCurrentDevice = False
-            self.saveBtn.setEnabled(False)
+        self.hasEditedIfNotEqual(selectedModel, self.currentDevice.model)
 
     # React when address type changes
     def onRadioToggle(self, isChecked):
@@ -367,6 +365,7 @@ class ConfigWindow(QtGui.QMainWindow):
                 self.hasEditedCurrentDevice = True
                 self.saveBtn.setEnabled(True)
             else:
+                # TODO: Check actual node name, could have changed it and then toggled radio buttons
                 self.hasEditedCurrentDevice = False
                 self.saveBtn.setEnabled(False)
             self.ipWidget.setEnabled(True)
@@ -391,12 +390,7 @@ class ConfigWindow(QtGui.QMainWindow):
             if i > 0:
                 ip += "."
             ip += textbox.text().rightJustified(3, QtCore.QChar('0'))
-        if self.currentDevice.addr != ip:
-            self.hasEditedCurrentDevice = True
-            self.saveBtn.setEnabled(True)
-        else:
-            self.hasEditedCurrentDevice = False
-            self.saveBtn.setEnabled(False)
+        self.hasEditedIfNotEqual(ip, self.currentDevice.addr)
 
     # React to node name changes
     def onNodeChange(self):
@@ -404,12 +398,7 @@ class ConfigWindow(QtGui.QMainWindow):
         if not self.noWhitespaceRegex.exactMatch(self.nodeEdit.text()) and len(self.nodeEdit.text()) > 0:
             QtGui.QMessageBox.warning(None, "Error", "The node name cannot contain whitespace.")
             self.nodeEdit.setText(self.nodeEdit.text()[:-1])
-        if self.currentDevice.addr != self.nodeEdit.text():
-            self.hasEditedCurrentDevice = True
-            self.saveBtn.setEnabled(True)
-        else:
-            self.hasEditedCurrentDevice = False
-            self.saveBtn.setEnabled(False)
+        self.hasEditedIfNotEqual(self.nodeEdit.text(), self.currentDevice.addr)
 
     # Update the properties of self.currentDevice based on the entered values
     def updateCurrentDevice(self):
