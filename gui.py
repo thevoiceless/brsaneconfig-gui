@@ -306,6 +306,15 @@ class ConfigWindow(QtGui.QMainWindow):
             for textbox in self.ipEdits:
                 textbox.setText("")
 
+    # Join the IP address components together
+    def getIP(self):
+        ip = ''
+        for i, textbox in enumerate(self.ipEdits):
+            if i > 0:
+                ip += "."
+            ip += textbox.text().rightJustified(3, QtCore.QChar('0'))
+        return ip
+
     # If the params are not equal, the current device has been edited
     def hasEditedIfNotEqual(self, thing1, thing2):
         if thing1 != thing2:
@@ -365,9 +374,9 @@ class ConfigWindow(QtGui.QMainWindow):
                 self.hasEditedCurrentDevice = True
                 self.saveBtn.setEnabled(True)
             else:
-                # TODO: Check actual node name, could have changed it and then toggled radio buttons
                 self.hasEditedCurrentDevice = False
                 self.saveBtn.setEnabled(False)
+                self.hasEditedIfNotEqual(self.getIP(), self.currentDevice.addr)
             self.ipWidget.setEnabled(True)
             self.nodeNameWidget.setEnabled(False)
         elif self.nodeRadio.isChecked():
@@ -377,6 +386,7 @@ class ConfigWindow(QtGui.QMainWindow):
             else:
                 self.hasEditedCurrentDevice = False
                 self.saveBtn.setEnabled(False)
+                self.hasEditedIfNotEqual(self.nodeEdit.text(), self.currentDevice.addr)
             self.ipWidget.setEnabled(False)
             self.nodeNameWidget.setEnabled(True)
         else:
@@ -385,12 +395,7 @@ class ConfigWindow(QtGui.QMainWindow):
 
     # React when IP address changes
     def onIPChange(self):
-        ip = ''
-        for i, textbox in enumerate(self.ipEdits):
-            if i > 0:
-                ip += "."
-            ip += textbox.text().rightJustified(3, QtCore.QChar('0'))
-        self.hasEditedIfNotEqual(ip, self.currentDevice.addr)
+        self.hasEditedIfNotEqual(self.getIP(), self.currentDevice.addr)
 
     # React to node name changes
     def onNodeChange(self):
@@ -406,12 +411,7 @@ class ConfigWindow(QtGui.QMainWindow):
         self.currentDevice.model = self.modelNameSelect.currentText()
         if self.ipRadio.isChecked():
             self.currentDevice.usesIP = True
-            ip = ''
-            for i, textbox in enumerate(self.ipEdits):
-                if i > 0:
-                    ip += "."
-                ip += textbox.text().rightJustified(3, QtCore.QChar('0'))
-            self.currentDevice.addr = ip
+            self.currentDevice.addr = self.getIP()
         else:
             self.currentDevice.usesIP = False
             self.currentDevice.addr = self.nodeEdit.text()
