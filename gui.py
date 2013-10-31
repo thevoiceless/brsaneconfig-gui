@@ -114,6 +114,7 @@ class ConfigWindow(QtGui.QMainWindow):
         self.friendlyNameEdit = QtGui.QLineEdit()
         self.modelNameSelect = QtGui.QComboBox()
         self.saveBtn = QtGui.QPushButton("Save")
+        self.deleteButton = QtGui.QPushButton("Delete")
         self.ipRadio = QtGui.QRadioButton("IP:")
         self.nodeRadio = QtGui.QRadioButton("Node:")
         self.ipWidget = QtGui.QWidget()
@@ -151,6 +152,7 @@ class ConfigWindow(QtGui.QMainWindow):
             self.myDevices.append(device)
 
         # self.deviceList contains only the names from self.myDevices
+        # TODO: What if there are no devices?
         self.deviceList.addItems([d.name for d in self.myDevices])
         self.deviceList.setCurrentRow(0)
 
@@ -235,11 +237,11 @@ class ConfigWindow(QtGui.QMainWindow):
         # "Save" and "delete" buttons
         # TODO: Attach actions
         self.saveBtn.setEnabled(False)
-        deleteButton = QtGui.QPushButton("Delete")
         self.saveBtn.clicked.connect(self.saveCurrentDevice)
+        self.deleteButton.clicked.connect(self.deleteCurrentDevice)
 
         buttonsLayout = QtGui.QHBoxLayout()
-        buttonsLayout.addWidget(deleteButton)
+        buttonsLayout.addWidget(self.deleteButton)
         buttonsLayout.addWidget(self.saveBtn)
         buttonsWidget = QtGui.QWidget()
         buttonsWidget.setLayout(buttonsLayout)
@@ -277,6 +279,8 @@ class ConfigWindow(QtGui.QMainWindow):
         self.center()
         self.show()
 
+        print "edited:", self.hasEditedCurrentDevice
+
     # Center the window on the screen
     def center(self):
         ourRect = self.frameGeometry()
@@ -291,17 +295,18 @@ class ConfigWindow(QtGui.QMainWindow):
         self.modelNameSelect.setCurrentIndex(self.modelNameSelect.findText(self.currentDevice.model))
 
         # Populate IP or node name
+        # Populate text boxes before setting radio button as doing so triggers the "toggled" signal and checks for edits
         if self.currentDevice.usesIP:
             self.ipWidget.setEnabled(True)
-            self.ipRadio.setChecked(True)
             for textbox, segment in zip(self.ipEdits, self.currentDevice.addr.split('.')):
                 textbox.setText(segment)
+            self.ipRadio.setChecked(True)
             self.nodeNameWidget.setEnabled(False)
             self.nodeEdit.setText("")
         else:
             self.nodeNameWidget.setEnabled(True)
-            self.nodeRadio.setChecked(True)
             self.nodeEdit.setText(self.currentDevice.addr)
+            self.nodeRadio.setChecked(True)
             self.ipWidget.setEnabled(False)
             for textbox in self.ipEdits:
                 textbox.setText("")
@@ -325,6 +330,7 @@ class ConfigWindow(QtGui.QMainWindow):
             self.saveBtn.setEnabled(False)
 
     # Common save operations
+    # TODO: Don't save if the name is empty or a duplicate
     def saveHelper(self):
         BrotherDevice.removeDevice(self.currentDevice.name)
         self.updateCurrentDevice()
@@ -338,8 +344,13 @@ class ConfigWindow(QtGui.QMainWindow):
         self.saveHelper()
         self.deviceList.currentItem().setText(self.currentDevice.name)
 
+    # Delete device
+    def deleteCurrentDevice(self):
+        print "delete device", self.currentDevice
+        print "row", self.deviceList.currentRow()
+        print "at that index in myDevices:", self.myDevices[self.deviceList.currentRow()]
+
     # React when a different device is selected in self.deviceList
-    # TODO: Don't save if the name is empty
     def onSelectedDeviceChange(self, currentItem, previousItem):
         if self.hasEditedCurrentDevice:
             saveChanges = QtGui.QMessageBox.question(None, "", "Save changes to current device?",
