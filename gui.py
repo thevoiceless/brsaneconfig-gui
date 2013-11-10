@@ -170,7 +170,6 @@ class ConfigWindow(QtGui.QMainWindow):
         # Device list on left
         deviceListPanel = QtGui.QVBoxLayout()
         deviceListPanel.addWidget(self.deviceList)
-        # TODO: Attach action, possibly pre-populate name
         addDeviceBtn = QtGui.QPushButton("Add New Device")
         deviceListPanel.addWidget(addDeviceBtn)
         self.deviceList.currentItemChanged.connect(self.onSelectedDeviceChange)
