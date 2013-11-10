@@ -10,17 +10,26 @@ WIDTH_FUDGE = 30
 
 
 class BrotherDevice:
-    def __init__(self, info):
-        # Parse info
-        num, friendlyName, modelName, ipOrNode = info.split()
-        # Check if IP or node name is specified
-        self.usesIP = ipOrNode.startswith("I:")
-        self.devID = num
-        self.name = friendlyName
-        # Remove quotation marks surrounding the model name
-        self.model = modelName.replace('"', '')
-        # Remove prefixes
-        self.addr = ipOrNode.replace("I:", '').replace("N:BRN_", "")
+    def __init__(self, info = None):
+        if info is not None:
+            self.isNew = False
+            # Parse info
+            num, friendlyName, modelName, ipOrNode = info.split()
+            # Check if IP or node name is specified
+            self.usesIP = ipOrNode.startswith("I:")
+            self.devID = num
+            self.name = friendlyName
+            # Remove quotation marks surrounding the model name
+            self.model = modelName.replace('"', '')
+            # Remove prefixes
+            self.addr = ipOrNode.replace("I:", '').replace("N:BRN_", "")
+        else:
+            self.isNew = True
+            self.devID = -1
+            self.name = ''
+            self.model = ''
+            self.usesIP = True
+            self.addr = '...'
 
     def __str__(self):
         return "devID: {}, name: {}, model: {}, addr: {} ({})".format(self.devID, self.name, self.model, self.addr,
@@ -55,7 +64,7 @@ class BrotherDevice:
                                               "name={}".format(device.name),
                                               "model={}".format(device.model),
                                               "ip={}".format(device.addr) if device.usesIP else "nodename=BRN_{}".format(device.addr)])
-            # There should be no output
+            # There should be no output (see comments in queryDevices())
             if len(output) > 0:
                 raise RuntimeError("Error adding device.")
             return output
@@ -76,7 +85,7 @@ class BrotherDevice:
     def removeDevice(name):
         try:
             output = subprocess.check_output(["brsaneconfig3", "-r", name])
-            # There should be no output
+            # There should be no output (see comments in queryDevices())
             if len(output) > 0:
                 raise RuntimeError("Error removing device.")
             return output
@@ -165,6 +174,7 @@ class ConfigWindow(QtGui.QMainWindow):
         addDeviceBtn = QtGui.QPushButton("Add New Device")
         deviceListPanel.addWidget(addDeviceBtn)
         self.deviceList.currentItemChanged.connect(self.onSelectedDeviceChange)
+        addDeviceBtn.clicked.connect(self.addNewDevice)
 
         # Main layout
         mainHBox = QtGui.QHBoxLayout()
@@ -235,7 +245,6 @@ class ConfigWindow(QtGui.QMainWindow):
         self.nodeEdit.textEdited.connect(self.onNodeChange)
 
         # "Save" and "delete" buttons
-        # TODO: Attach actions
         self.saveBtn.setEnabled(False)
         self.saveBtn.clicked.connect(self.saveCurrentDevice)
         self.deleteButton.clicked.connect(self.deleteCurrentDevice)
@@ -288,6 +297,7 @@ class ConfigWindow(QtGui.QMainWindow):
         ourRect.moveCenter(screenCenter)
         self.move(ourRect.topLeft())
 
+    # Update fields in GUI based on current device
     def updateFields(self):
         self.friendlyNameEdit.setText(self.currentDevice.name)
 
@@ -329,12 +339,23 @@ class ConfigWindow(QtGui.QMainWindow):
             self.hasEditedCurrentDevice = False
             self.saveBtn.setEnabled(False)
 
+    # Create a new device
+    def addNewDevice(self):
+        newDevice = BrotherDevice()
+        print newDevice
+        self.myDevices.append(newDevice)
+        self.deviceList.addItem('New Device')
+        self.onSelectedDeviceChange(self.deviceList.item(len(self.myDevices) - 1), self.deviceList.currentItem())
+        self.deviceList.setCurrentRow(len(self.myDevices) - 1)
+        self.friendlyNameEdit.setFocus()
+
     # Common save operations
     # TODO: Don't save if the name is empty or a duplicate
     def saveHelper(self):
         BrotherDevice.removeDevice(self.currentDevice.name)
         self.updateCurrentDevice()
         BrotherDevice.addDevice(self.currentDevice)
+        self.currentDevice.isNew = False
         self.hasEditedCurrentDevice = False
         self.saveBtn.setEnabled(False)
 
@@ -349,15 +370,24 @@ class ConfigWindow(QtGui.QMainWindow):
         print "delete device", self.currentDevice
         print "row", self.deviceList.currentRow()
         print "at that index in myDevices:", self.myDevices[self.deviceList.currentRow()]
+        BrotherDevice.removeDevice(self.currentDevice.name)
+        del self.myDevices[self.deviceList.currentRow()]
+        self.deviceList.takeItem(self.deviceList.currentRow())
+        self.hasEditedCurrentDevice = False
+        self.onSelectedDeviceChange(None, None)
 
     # React when a different device is selected in self.deviceList
     def onSelectedDeviceChange(self, currentItem, previousItem):
         if self.hasEditedCurrentDevice:
             saveChanges = QtGui.QMessageBox.question(None, "", "Save changes to current device?",
                                                      QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
-            if saveChanges:
+            if saveChanges == QtGui.QMessageBox.Yes:
                 self.saveHelper()
                 previousItem.setText(self.currentDevice.name)
+            else:
+                if self.currentDevice.isNew:
+                    self.deviceList.takeItem(self.deviceList.row(previousItem))
+                    self.myDevices.pop()
 
         row = self.deviceList.currentRow()
         self.currentDevice = self.myDevices[row]
