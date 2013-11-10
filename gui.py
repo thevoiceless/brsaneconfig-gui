@@ -345,7 +345,7 @@ class ConfigWindow(QtGui.QMainWindow):
         print newDevice
         self.myDevices.append(newDevice)
         self.deviceList.addItem('New Device')
-        self.onSelectedDeviceChange(self.deviceList.item(len(self.myDevices) - 1), self.deviceList.currentItem())
+        # This will call onSelectedDeviceChange to verify any changes before switching to the new device
         self.deviceList.setCurrentRow(len(self.myDevices) - 1)
         self.friendlyNameEdit.setFocus()
 
@@ -391,8 +391,9 @@ class ConfigWindow(QtGui.QMainWindow):
 
         row = self.deviceList.currentRow()
         self.currentDevice = self.myDevices[row]
+        print "current is now", self.currentDevice
         self.updateFields()
-        print "Device at row {} is {}".format(row, self.myDevices[row])
+        #print "Device at row {} is {}".format(row, self.myDevices[row])
 
     # React when self.friendlyNameEdit changes
     def onNameInputChange(self):
