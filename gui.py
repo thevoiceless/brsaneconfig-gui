@@ -438,8 +438,10 @@ class ConfigWindow(QtGui.QMainWindow):
         self.previousItem = previousItem
         print "set previous to", self.previousItem.text()
 
-    # Do all the fun stuff when the user clicks on a different device
+    # Check if there are changes to be saved when the user clicks on a different device and update the GUI accordingly
     # This gives control over whether or not to allow switching to a new device if there are errors with the current one
+    # Orignally rememberPreviousItem() was used with the currentItemChanged signal, but the code would get stuck in a
+    # loop when switching back to the previously selected device because doing so would trigger the signal again
     def onDeviceClicked(self, item):
         print "Clicked", item.text(), "(row", str(self.deviceList.row(item)) + ")"
         print "Compare", item.text(), "to", self.previousItem.text()
@@ -539,7 +541,6 @@ class ConfigWindow(QtGui.QMainWindow):
             self.currentDevice.addr = self.nodeEdit.text()
 
     def validateFieldValues(self):
-        # TODO: Don't save if the name is a duplicate
         # TODO: Decide if fields should be left blank or repopulated with their original values
         # Validate the values entered by the user
         # If there is an error, set flags to keep the save button enabled even if the original value is entered again
