@@ -129,6 +129,7 @@ class ConfigWindow(QtGui.QMainWindow):
         self.ipWidget = QtGui.QWidget()
         self.nodeEdit = QtGui.QLineEdit()
         self.nodeNameWidget = QtGui.QWidget()
+        self.previousItem = None
 
         self.gatherInfo()
         self.initUI()
@@ -172,7 +173,10 @@ class ConfigWindow(QtGui.QMainWindow):
         deviceListPanel.addWidget(self.deviceList)
         addDeviceBtn = QtGui.QPushButton("Add New Device")
         deviceListPanel.addWidget(addDeviceBtn)
-        self.deviceList.currentItemChanged.connect(self.onSelectedDeviceChange)
+        # Connect to currentItemChanged to remember the previous seleted item
+        self.deviceList.currentItemChanged.connect(self.rememberPreviousItem)
+        # Do error-checking logic when item is clicked
+        self.deviceList.itemPressed.connect(self.onDeviceClicked)
         addDeviceBtn.clicked.connect(self.addNewDevice)
 
         # Main layout
@@ -344,25 +348,51 @@ class ConfigWindow(QtGui.QMainWindow):
         print newDevice
         self.myDevices.append(newDevice)
         self.deviceList.addItem('New Device')
-        # This will call onSelectedDeviceChange to verify any changes before switching to the new device
+        # TODO: Test this
+        # TODO: Try to extract common dialog code
+        if self.hasEditedCurrentDevice:
+            saveChanges = QtGui.QMessageBox.question(None, "", "Save changes to current device?",
+                                                     QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                     QtGui.QMessageBox.No)
+            if saveChanges == QtGui.QMessageBox.Yes:
+                if self.saveHelper():
+                    print "save successful"
+                    self.deviceList.currentItem().setText(self.currentDevice.name)
+                else:
+                    self.deviceList.takeItem(len(self.myDevices) - 1)
+                    self.myDevices.pop()
+                    return
+
         self.deviceList.setCurrentRow(len(self.myDevices) - 1)
+        self.currentDevice = self.myDevices[self.deviceList.currentRow()]
+        self.hasEditedCurrentDevice = True
+        self.updateFields()
         self.friendlyNameEdit.setFocus()
 
-    # Common save operations
-    # TODO: Don't save if the name is empty or a duplicate
+    # Common save operation
     def saveHelper(self):
-        BrotherDevice.removeDevice(self.currentDevice.name)
+        # Only remove device if it has already been saved
+        if not self.currentDevice.isNew:
+            print "removing '%s'" % self.currentDevice.name
+            BrotherDevice.removeDevice(self.currentDevice.name)
+        # Validate
+        print "updating based on input"
+        if not self.validateFieldValues():
+            return False
+        # Save changes
         self.updateCurrentDevice()
+        print "saving"
         BrotherDevice.addDevice(self.currentDevice)
         self.currentDevice.isNew = False
         self.hasEditedCurrentDevice = False
         self.saveBtn.setEnabled(False)
+        return True
 
-    # Save device
-    # Apparently changing the data backing the QListWidget isn't enough, must manually update the label
+    # Save device and update the displayed name
     def saveCurrentDevice(self):
-        self.saveHelper()
-        self.deviceList.currentItem().setText(self.currentDevice.name)
+        if self.saveHelper():
+            # Apparently changing the data backing the QListWidget isn't enough, must manually update the label
+            self.deviceList.currentItem().setText(self.currentDevice.name)
 
     # Delete device
     def deleteCurrentDevice(self):
@@ -373,26 +403,52 @@ class ConfigWindow(QtGui.QMainWindow):
         del self.myDevices[self.deviceList.currentRow()]
         self.deviceList.takeItem(self.deviceList.currentRow())
         self.hasEditedCurrentDevice = False
-        self.onSelectedDeviceChange(None, None)
 
-    # React when a different device is selected in self.deviceList
-    def onSelectedDeviceChange(self, currentItem, previousItem):
-        if self.hasEditedCurrentDevice:
-            saveChanges = QtGui.QMessageBox.question(None, "", "Save changes to current device?",
-                                                     QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
-            if saveChanges == QtGui.QMessageBox.Yes:
-                self.saveHelper()
-                previousItem.setText(self.currentDevice.name)
+    # When the selected device changes, remember the previous one in case there's an error and we need to go back to it
+    def rememberPreviousItem(self, currentItem, previousItem):
+        self.previousItem = previousItem
+        print "set previous to", self.previousItem.text()
+
+    # Do all the fun stuff when the user clicks on a different device
+    # This gives control over whether or not to allow selecting a new device if there are errors with the current one
+    def onDeviceClicked(self, item):
+        print "Clicked", item.text(), "(row", str(self.deviceList.row(item)) + ")"
+        print "Compare", item.text(), "to", self.previousItem.text()
+        # Clicked on a different one than was selected
+        if item != self.previousItem:
+            print "different"
+            # Ask the user if they want to save any changes that have been made
+            if self.hasEditedCurrentDevice:
+                saveChanges = QtGui.QMessageBox.question(None, "", "Save changes to current device?",
+                                                         QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                         QtGui.QMessageBox.No)
+                if saveChanges == QtGui.QMessageBox.Yes:
+                    if self.saveHelper():
+                        print "save successful"
+                        self.previousItem.setText(self.currentDevice.name)
+                        self.previousItem = item
+                        self.currentDevice = self.myDevices[self.deviceList.currentRow()]
+                    else:
+                        print "save failed"
+                        self.deviceList.setCurrentItem(self.previousItem)
+                else:
+                    # If the device did not already exist, discard it
+                    # This is if the user clicks "Add Device" and then selects another device before saving the new one
+                    if self.currentDevice.isNew:
+                        self.deviceList.takeItem(self.deviceList.row(self.previousItem))
+                        self.previousItem = None
+                        self.myDevices.pop()
+                    self.currentDevice = self.myDevices[self.deviceList.currentRow()]
+                    self.hasEditedCurrentDevice = False
             else:
-                if self.currentDevice.isNew:
-                    self.deviceList.takeItem(self.deviceList.row(previousItem))
-                    self.myDevices.pop()
+                self.previousItem = item
+                self.currentDevice = self.myDevices[self.deviceList.currentRow()]
+        else:
+            print "same"
 
-        row = self.deviceList.currentRow()
-        self.currentDevice = self.myDevices[row]
-        print "current is now", self.currentDevice
+        print "current device is", self.currentDevice.name
         self.updateFields()
-        #print "Device at row {} is {}".format(row, self.myDevices[row])
+
 
     # React when self.friendlyNameEdit changes
     def onNameInputChange(self):
@@ -402,6 +458,8 @@ class ConfigWindow(QtGui.QMainWindow):
             self.friendlyNameEdit.setText(self.friendlyNameEdit.text()[:-1])
         # Check if modified from original
         self.hasEditedIfNotEqual(self.friendlyNameEdit.text(), self.currentDevice.name)
+        if len(self.friendlyNameEdit.text()) < 1:
+            self.saveBtn.setEnabled(False)
 
     # React when self.modelNameSelect changes
     def onModelNameChange(self):
@@ -456,6 +514,26 @@ class ConfigWindow(QtGui.QMainWindow):
         else:
             self.currentDevice.usesIP = False
             self.currentDevice.addr = self.nodeEdit.text()
+
+    def validateFieldValues(self):
+        # TODO: BUG: Allow entering the original name if the user tries to save with an invalid one
+        # TODO: Don't save if the name is a duplicate
+        errors = ""
+        if len(self.friendlyNameEdit.text()) < 1:
+            errors += "You must enter a name."
+        if len(self.modelNameSelect.currentText()) < 1:
+            errors += "\n" if len(errors) > 0 else ""
+            errors += "You must select a model."
+        if self.ipRadio.isChecked() and self.getIP() == "000.000.000.000":
+            errors += "\n" if len(errors) > 0 else ""
+            errors += "You must enter an IP address."
+        if self.nodeRadio.isChecked() and len(self.nodeEdit.text()) < 1:
+            errors += "\n" if len(errors) > 0 else ""
+            errors += "You must enter a node name."
+        if len(errors) > 0:
+            QtGui.QMessageBox.warning(None, "Error", errors)
+            return False
+        return True
 
 
 def main():
