@@ -419,15 +419,19 @@ class ConfigWindow(QtGui.QMainWindow):
 
     # Delete device
     def deleteCurrentDevice(self):
-        print "delete device", self.currentDevice
-        print "row", self.deviceList.currentRow()
-        print "at that index in myDevices:", self.myDevices[self.deviceList.currentRow()]
-        BrotherDevice.removeDevice(self.currentDevice.name)
-        del self.myDevices[self.deviceList.currentRow()]
-        self.deviceList.takeItem(self.deviceList.currentRow())
-        self.currentDevice = self.myDevices[self.deviceList.currentRow()]
-        self.hasEditedCurrentDevice = False
-        self.updateFields()
+        areYouSure = QtGui.QMessageBox.question(None, "", "Delete '{}'?".format(self.currentDevice.name),
+                                                         QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                         QtGui.QMessageBox.No)
+        if areYouSure == QtGui.QMessageBox.Yes:
+            print "delete device", self.currentDevice
+            print "row", self.deviceList.currentRow()
+            print "at that index in myDevices:", self.myDevices[self.deviceList.currentRow()]
+            BrotherDevice.removeDevice(self.currentDevice.name)
+            del self.myDevices[self.deviceList.currentRow()]
+            self.deviceList.takeItem(self.deviceList.currentRow())
+            self.currentDevice = self.myDevices[self.deviceList.currentRow()]
+            self.hasEditedCurrentDevice = False
+            self.updateFields()
 
     # When the selected device changes, remember the previous one in case there's an error and we need to go back to it
     def rememberPreviousItem(self, currentItem, previousItem):
@@ -543,6 +547,10 @@ class ConfigWindow(QtGui.QMainWindow):
         if len(self.friendlyNameEdit.text()) < 1:
             errors += "You must enter a name."
             self.allowOriginalName = True
+        if self.friendlyNameEdit.text() in self.getNames(self.currentDevice):
+            errors += "\n" if len(errors) > 0 else ""
+            errors += "A device with that name already exists."
+            self.allowOriginalName = True
         if len(self.modelNameSelect.currentText()) < 1:
             errors += "\n" if len(errors) > 0 else ""
             errors += "You must select a model."
@@ -629,6 +637,11 @@ class ConfigWindow(QtGui.QMainWindow):
             box.blockSignals(False)
         self.nodeRadio.blockSignals(False)
         self.nodeEdit.blockSignals(False)
+
+    def getNames(self, curr):
+        for dev in self.myDevices:
+            if dev != curr:
+                yield dev.name
 
 
 def main():
