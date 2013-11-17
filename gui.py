@@ -344,12 +344,7 @@ class ConfigWindow(QtGui.QMainWindow):
     # blank because the contents of empty fields are currently left empty after validation fails. As a result, the save
     # button would need to be enabled even if they enter the original value again.
     def hasEditedIfNotEqual(self, thing1, thing2, allowOriginal = False):
-        if thing1 != thing2 or allowOriginal:
-            self.hasEditedCurrentDevice = True
-            self.saveBtn.setEnabled(True)
-        else:
-            self.hasEditedCurrentDevice = False
-            self.saveBtn.setEnabled(False)
+        return thing1 != thing2 or allowOriginal
 
     # Pressed the "Add Device" button
     def addNewDevice(self):
@@ -416,8 +411,9 @@ class ConfigWindow(QtGui.QMainWindow):
         BrotherDevice.removeDevice(self.currentDevice.name)
         del self.myDevices[self.deviceList.currentRow()]
         self.deviceList.takeItem(self.deviceList.currentRow())
+        self.currentDevice = self.myDevices[self.deviceList.currentRow()]
         self.hasEditedCurrentDevice = False
-        # TODO: Test this, may need to update fields
+        self.updateFields()
 
     # When the selected device changes, remember the previous one in case there's an error and we need to go back to it
     def rememberPreviousItem(self, currentItem, previousItem):
@@ -475,39 +471,29 @@ class ConfigWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.warning(None, "Error", "The name cannot contain whitespace.")
             self.friendlyNameEdit.setText(self.friendlyNameEdit.text()[:-1])
         # Check if modified from original
-        self.hasEditedIfNotEqual(self.friendlyNameEdit.text(), self.currentDevice.name, self.allowOriginalName)
+        self.checkForEdits()
 
     # React when self.modelNameSelect changes
     def onModelNameChange(self):
-        selectedModel = self.modelNameSelect.currentText()
-        self.hasEditedIfNotEqual(selectedModel, self.currentDevice.model, self.allowOriginalModel)
+        # Check if modified from original
+        self.checkForEdits()
 
     # React when address type changes
     def onRadioToggle(self, isChecked):
+        # Enable the appropriate GUI components depending on which radio button is selected
         if self.ipRadio.isChecked():
-            if not self.currentDevice.usesIP:
-                self.hasEditedCurrentDevice = True
-                self.saveBtn.setEnabled(True)
-            else:
-                #self.hasEditedCurrentDevice = False
-                #self.saveBtn.setEnabled(False)
-                self.hasEditedIfNotEqual(self.getIP(), self.currentDevice.addr, self.allowOriginalAddr)
             self.ipWidget.setEnabled(True)
             self.nodeNameWidget.setEnabled(False)
         elif self.nodeRadio.isChecked():
-            if self.currentDevice.usesIP:
-                self.hasEditedCurrentDevice = True
-                self.saveBtn.setEnabled(True)
-            else:
-                #self.hasEditedCurrentDevice = False
-                #self.saveBtn.setEnabled(False)
-                self.hasEditedIfNotEqual(self.nodeEdit.text(), self.currentDevice.addr, self.allowOriginalAddr)
             self.ipWidget.setEnabled(False)
             self.nodeNameWidget.setEnabled(True)
+        # Check if modified from original
+        self.checkForEdits()
 
     # React when IP address changes
     def onIPChange(self):
-        self.hasEditedIfNotEqual(self.getIP(), self.currentDevice.addr, self.allowOriginalAddr)
+        # Check if modified from original
+        self.checkForEdits()
 
     # React to node name changes
     def onNodeChange(self):
@@ -515,7 +501,8 @@ class ConfigWindow(QtGui.QMainWindow):
         if not self.noWhitespaceRegex.exactMatch(self.nodeEdit.text()) and len(self.nodeEdit.text()) > 0:
             QtGui.QMessageBox.warning(None, "Error", "The node name cannot contain whitespace.")
             self.nodeEdit.setText(self.nodeEdit.text()[:-1])
-        self.hasEditedIfNotEqual(self.nodeEdit.text(), self.currentDevice.addr, self.allowOriginalAddr)
+        # Check if modified from original
+        self.checkForEdits()
 
     # Update the properties of self.currentDevice based on the entered values
     def updateCurrentDevice(self):
@@ -541,6 +528,7 @@ class ConfigWindow(QtGui.QMainWindow):
             errors += "\n" if len(errors) > 0 else ""
             errors += "You must select a model."
             self.allowOriginalModel = True
+        # TODO: Check for empty text boxes rather than zero IP
         # Not sure if 0.0.0.0 will ever be a valid IP
         if self.ipRadio.isChecked() and self.getIP() == "000.000.000.000":
             errors += "\n" if len(errors) > 0 else ""
@@ -559,6 +547,37 @@ class ConfigWindow(QtGui.QMainWindow):
         self.allowOriginalName = False
         self.allowOriginalModel = False
         self.allowOriginalAddr = False
+
+    # Determine if the device has been edited
+    # Check if any field values differ from the originals, "OR" the results together
+    def checkForEdits(self):
+        # Name
+        edited = False or self.hasEditedIfNotEqual(self.friendlyNameEdit.text(),
+                                                   self.currentDevice.name,
+                                                   self.allowOriginalName)
+        # Model
+        edited = edited or self.hasEditedIfNotEqual(self.modelNameSelect.currentText(),
+                                                    self.currentDevice.model,
+                                                    self.allowOriginalModel)
+        # IP or Node
+        if self.ipRadio.isChecked():
+            if not self.currentDevice.usesIP:
+                edited = True
+            else:
+                edited = edited or self.hasEditedIfNotEqual(self.getIP(),
+                                                            self.currentDevice.addr,
+                                                            self.allowOriginalAddr)
+        elif self.nodeRadio.isChecked():
+            if self.currentDevice.usesIP:
+                edited = True
+            else:
+                edited = edited or self.hasEditedIfNotEqual(self.nodeEdit.text(),
+                                                            self.currentDevice.addr,
+                                                            self.allowOriginalAddr)
+
+        # Act accordingly
+        self.hasEditedCurrentDevice = edited
+        self.saveBtn.setEnabled(self.hasEditedCurrentDevice)
 
 
 def main():
