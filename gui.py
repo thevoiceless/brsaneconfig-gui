@@ -5,6 +5,7 @@ from PyQt4 import QtGui, QtCore
 
 
 DEBUG = True
+debugcounter = 0
 WINDOW_TITLE = 'brsaneconfig3'
 WIDTH_FUDGE = 30
 
@@ -305,27 +306,39 @@ class ConfigWindow(QtGui.QMainWindow):
 
     # Update fields in GUI based on current device
     def updateFields(self):
+        # Disable signals until all fields have been populated
+        print "disabling signals"
+        self.disableSignals()
+        print "setting name"
         self.friendlyNameEdit.setText(self.currentDevice.name)
 
         # Set content of model name dropdown
+        print "setting model"
         self.modelNameSelect.setCurrentIndex(self.modelNameSelect.findText(self.currentDevice.model))
 
         # Populate IP or node name
-        # Populate text boxes before setting radio button as doing so triggers the "toggled" signal and checks for edits
+        print "setting address"
         if self.currentDevice.usesIP:
             self.ipWidget.setEnabled(True)
+            print "checking ip"
+            self.ipRadio.setChecked(True)
+            print "populating ip"
             for textbox, segment in zip(self.ipEdits, self.currentDevice.addr.split('.')):
                 textbox.setText(segment)
-            self.ipRadio.setChecked(True)
             self.nodeNameWidget.setEnabled(False)
             self.nodeEdit.setText("")
         else:
             self.nodeNameWidget.setEnabled(True)
-            self.nodeEdit.setText(self.currentDevice.addr)
+            print "checking node"
             self.nodeRadio.setChecked(True)
+            print "populating node"
+            self.nodeEdit.setText(self.currentDevice.addr)
             self.ipWidget.setEnabled(False)
             for textbox in self.ipEdits:
                 textbox.setText("")
+
+        print "enabling signals"
+        self.enableSignals()
 
     # Join the IP address components together
     # Will return "000.000.000.000" if no IP is entered
@@ -373,6 +386,7 @@ class ConfigWindow(QtGui.QMainWindow):
         self.deviceList.setCurrentRow(len(self.myDevices) - 1)
         self.currentDevice = self.myDevices[self.deviceList.currentRow()]
         self.hasEditedCurrentDevice = True
+        print 'EDITED SET TO TRUE in addDevice'
         self.updateFields()
         self.friendlyNameEdit.setFocus()
 
@@ -466,6 +480,7 @@ class ConfigWindow(QtGui.QMainWindow):
 
     # React when self.friendlyNameEdit changes
     def onNameInputChange(self):
+        print "name change"
         # Disallow whitespace
         if not self.noWhitespaceRegex.exactMatch(self.friendlyNameEdit.text()) and len(self.friendlyNameEdit.text()) > 0:
             QtGui.QMessageBox.warning(None, "Error", "The name cannot contain whitespace.")
@@ -475,11 +490,13 @@ class ConfigWindow(QtGui.QMainWindow):
 
     # React when self.modelNameSelect changes
     def onModelNameChange(self):
+        print "model change"
         # Check if modified from original
         self.checkForEdits()
 
     # React when address type changes
     def onRadioToggle(self, isChecked):
+        print "radio toggled"
         # Enable the appropriate GUI components depending on which radio button is selected
         if self.ipRadio.isChecked():
             self.ipWidget.setEnabled(True)
@@ -492,11 +509,13 @@ class ConfigWindow(QtGui.QMainWindow):
 
     # React when IP address changes
     def onIPChange(self):
+        print "ip changed"
         # Check if modified from original
         self.checkForEdits()
 
     # React to node name changes
     def onNodeChange(self):
+        print "nodename changed"
         # Disallow whitespace
         if not self.noWhitespaceRegex.exactMatch(self.nodeEdit.text()) and len(self.nodeEdit.text()) > 0:
             QtGui.QMessageBox.warning(None, "Error", "The node name cannot contain whitespace.")
@@ -552,32 +571,64 @@ class ConfigWindow(QtGui.QMainWindow):
     # Check if any field values differ from the originals, "OR" the results together
     def checkForEdits(self):
         # Name
+        print "checking", self.friendlyNameEdit.text(), "vs", self.currentDevice.name,
         edited = False or self.hasEditedIfNotEqual(self.friendlyNameEdit.text(),
                                                    self.currentDevice.name,
                                                    self.allowOriginalName)
+        print edited
         # Model
+        print "checking", self.modelNameSelect.currentText(), "vs", self.currentDevice.model,
         edited = edited or self.hasEditedIfNotEqual(self.modelNameSelect.currentText(),
                                                     self.currentDevice.model,
                                                     self.allowOriginalModel)
+        print edited
         # IP or Node
+        print "checking address",
         if self.ipRadio.isChecked():
             if not self.currentDevice.usesIP:
+                print "switched to IP",
                 edited = True
             else:
+                print "checking", self.getIP(), "vs", self.currentDevice.addr,
                 edited = edited or self.hasEditedIfNotEqual(self.getIP(),
                                                             self.currentDevice.addr,
                                                             self.allowOriginalAddr)
         elif self.nodeRadio.isChecked():
             if self.currentDevice.usesIP:
+                print "switched to node",
                 edited = True
             else:
+                print "checking", self.nodeEdit.text(), "vs", self.currentDevice.addr,
                 edited = edited or self.hasEditedIfNotEqual(self.nodeEdit.text(),
                                                             self.currentDevice.addr,
                                                             self.allowOriginalAddr)
+        print edited
 
         # Act accordingly
         self.hasEditedCurrentDevice = edited
+        print 'EDITED SET TO', edited, 'in checkForEdits'
         self.saveBtn.setEnabled(self.hasEditedCurrentDevice)
+        global debugcounter
+        print debugcounter, "-------------"
+        debugcounter += 1
+
+    def disableSignals(self):
+        self.friendlyNameEdit.blockSignals(True)
+        self.modelNameSelect.blockSignals(True)
+        self.ipRadio.blockSignals(True)
+        for box in self.ipEdits:
+            box.blockSignals(True)
+        self.nodeRadio.blockSignals(True)
+        self.nodeEdit.blockSignals(True)
+
+    def enableSignals(self):
+        self.friendlyNameEdit.blockSignals(False)
+        self.modelNameSelect.blockSignals(False)
+        self.ipRadio.blockSignals(False)
+        for box in self.ipEdits:
+            box.blockSignals(False)
+        self.nodeRadio.blockSignals(False)
+        self.nodeEdit.blockSignals(False)
 
 
 def main():
