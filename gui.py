@@ -343,12 +343,7 @@ class ConfigWindow(QtGui.QMainWindow):
     # Join the IP address components together
     # Will return "000.000.000.000" if no IP is entered
     def getIP(self):
-        ip = ''
-        for i, textbox in enumerate(self.ipEdits):
-            if i > 0:
-                ip += "."
-            ip += textbox.text().rightJustified(3, QtCore.QChar('0'))
-        return ip
+        return '.'.join(self.getIPEditsContents(pad = True))
 
     # If the params are not equal, the current device has been edited
     # The allowOriginal parameter is used to override the comparison in some situations
@@ -556,11 +551,9 @@ class ConfigWindow(QtGui.QMainWindow):
             errors += "\n" if len(errors) > 0 else ""
             errors += "You must select a model."
             self.allowOriginalModel = True
-        # TODO: Check for empty text boxes rather than zero IP
-        # Not sure if 0.0.0.0 will ever be a valid IP
-        if self.ipRadio.isChecked() and self.getIP() == "000.000.000.000":
+        if self.ipRadio.isChecked() and not self.isIPcomplete():
             errors += "\n" if len(errors) > 0 else ""
-            errors += "You must enter an IP address."
+            errors += "You must enter a full IP address."
             self.allowOriginalAddr = True
         if self.nodeRadio.isChecked() and len(self.nodeEdit.text()) < 1:
             errors += "\n" if len(errors) > 0 else ""
@@ -639,10 +632,20 @@ class ConfigWindow(QtGui.QMainWindow):
         self.nodeRadio.blockSignals(False)
         self.nodeEdit.blockSignals(False)
 
+    # Generator for all current device names
     def getNames(self, curr):
         for dev in self.myDevices:
             if dev != curr:
                 yield dev.name
+
+    # Generator for the IP address entered by the user
+    def getIPEditsContents(self, pad = False):
+        for box in self.ipEdits:
+            yield str(box.text().rightJustified(3, QtCore.QChar('0'))) if pad else str(box.text())
+
+    # Ensure that something was entered into each text box for the IP
+    def isIPcomplete(self):
+        return all(self.getIPEditsContents())
 
 
 def main():
