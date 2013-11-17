@@ -117,6 +117,9 @@ class ConfigWindow(QtGui.QMainWindow):
         self.noWhitespaceRegex = QtCore.QRegExp('[^\s]+')
         self.hasEditedCurrentDevice = False
         self.ipEdits = []
+        self.allowOriginalName = False
+        self.allowOriginalModel = False
+        self.allowOriginalAddr = False
 
         # Interface elements
         self.deviceList = QtGui.QListWidget()
@@ -325,6 +328,7 @@ class ConfigWindow(QtGui.QMainWindow):
                 textbox.setText("")
 
     # Join the IP address components together
+    # Will return "000.000.000.000" if no IP is entered
     def getIP(self):
         ip = ''
         for i, textbox in enumerate(self.ipEdits):
@@ -334,58 +338,68 @@ class ConfigWindow(QtGui.QMainWindow):
         return ip
 
     # If the params are not equal, the current device has been edited
-    def hasEditedIfNotEqual(self, thing1, thing2):
-        if thing1 != thing2:
+    # The allowOriginal parameter is used to override the comparison in some situations
+    # For example, if the user makes multiple changes but only some of them are valid, overriding the comparison for
+    # the invalid fields allows the user to enter the original values again. This usually happens if they leave a field
+    # blank because the contents of empty fields are currently left empty after validation fails. As a result, the save
+    # button would need to be enabled even if they enter the original value again.
+    def hasEditedIfNotEqual(self, thing1, thing2, allowOriginal = False):
+        if thing1 != thing2 or allowOriginal:
             self.hasEditedCurrentDevice = True
             self.saveBtn.setEnabled(True)
         else:
             self.hasEditedCurrentDevice = False
             self.saveBtn.setEnabled(False)
 
-    # Create a new device
+    # Pressed the "Add Device" button
     def addNewDevice(self):
+        # Create the new device and add it to myDevices and the devices list
         newDevice = BrotherDevice()
-        print newDevice
         self.myDevices.append(newDevice)
         self.deviceList.addItem('New Device')
-        # TODO: Test this
         # TODO: Try to extract common dialog code
+        # Check if there are changes we need to save
         if self.hasEditedCurrentDevice:
             saveChanges = QtGui.QMessageBox.question(None, "", "Save changes to current device?",
                                                      QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
                                                      QtGui.QMessageBox.No)
             if saveChanges == QtGui.QMessageBox.Yes:
+                # If the user wants to save changes, attempt to do so before switching to the new device
                 if self.saveHelper():
                     print "save successful"
                     self.deviceList.currentItem().setText(self.currentDevice.name)
+                # If the save operation fails, the user must fix things before they can switch to adding a new device
                 else:
                     self.deviceList.takeItem(len(self.myDevices) - 1)
                     self.myDevices.pop()
                     return
 
+        # If the save operation succeeds or if there are no changes to save, switch to the new device
         self.deviceList.setCurrentRow(len(self.myDevices) - 1)
         self.currentDevice = self.myDevices[self.deviceList.currentRow()]
         self.hasEditedCurrentDevice = True
         self.updateFields()
         self.friendlyNameEdit.setFocus()
 
-    # Common save operation
+    # Common save operation (does not update name displayed in device list)
     def saveHelper(self):
+        # Stop here if input is invalid
+        print "validating input"
+        if not self.validateFieldValues():
+            return False
         # Only remove device if it has already been saved
         if not self.currentDevice.isNew:
             print "removing '%s'" % self.currentDevice.name
             BrotherDevice.removeDevice(self.currentDevice.name)
-        # Validate
-        print "updating based on input"
-        if not self.validateFieldValues():
-            return False
         # Save changes
         self.updateCurrentDevice()
         print "saving"
         BrotherDevice.addDevice(self.currentDevice)
+        # Reset flags
         self.currentDevice.isNew = False
         self.hasEditedCurrentDevice = False
         self.saveBtn.setEnabled(False)
+        self.resetValidationExceptions()
         return True
 
     # Save device and update the displayed name
@@ -403,6 +417,7 @@ class ConfigWindow(QtGui.QMainWindow):
         del self.myDevices[self.deviceList.currentRow()]
         self.deviceList.takeItem(self.deviceList.currentRow())
         self.hasEditedCurrentDevice = False
+        # TODO: Test this, may need to update fields
 
     # When the selected device changes, remember the previous one in case there's an error and we need to go back to it
     def rememberPreviousItem(self, currentItem, previousItem):
@@ -410,11 +425,11 @@ class ConfigWindow(QtGui.QMainWindow):
         print "set previous to", self.previousItem.text()
 
     # Do all the fun stuff when the user clicks on a different device
-    # This gives control over whether or not to allow selecting a new device if there are errors with the current one
+    # This gives control over whether or not to allow switching to a new device if there are errors with the current one
     def onDeviceClicked(self, item):
         print "Clicked", item.text(), "(row", str(self.deviceList.row(item)) + ")"
         print "Compare", item.text(), "to", self.previousItem.text()
-        # Clicked on a different one than was selected
+        # Clicked on a different one than was previously selected
         if item != self.previousItem:
             print "different"
             # Ask the user if they want to save any changes that have been made
@@ -431,7 +446,10 @@ class ConfigWindow(QtGui.QMainWindow):
                     else:
                         print "save failed"
                         self.deviceList.setCurrentItem(self.previousItem)
+                        # Don't reset all of the fields back to original values if the save failed
+                        return
                 else:
+                    print "not saving new device"
                     # If the device did not already exist, discard it
                     # This is if the user clicks "Add Device" and then selects another device before saving the new one
                     if self.currentDevice.isNew:
@@ -440,6 +458,7 @@ class ConfigWindow(QtGui.QMainWindow):
                         self.myDevices.pop()
                     self.currentDevice = self.myDevices[self.deviceList.currentRow()]
                     self.hasEditedCurrentDevice = False
+                    self.resetValidationExceptions()
             else:
                 self.previousItem = item
                 self.currentDevice = self.myDevices[self.deviceList.currentRow()]
@@ -449,7 +468,6 @@ class ConfigWindow(QtGui.QMainWindow):
         print "current device is", self.currentDevice.name
         self.updateFields()
 
-
     # React when self.friendlyNameEdit changes
     def onNameInputChange(self):
         # Disallow whitespace
@@ -457,14 +475,12 @@ class ConfigWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.warning(None, "Error", "The name cannot contain whitespace.")
             self.friendlyNameEdit.setText(self.friendlyNameEdit.text()[:-1])
         # Check if modified from original
-        self.hasEditedIfNotEqual(self.friendlyNameEdit.text(), self.currentDevice.name)
-        if len(self.friendlyNameEdit.text()) < 1:
-            self.saveBtn.setEnabled(False)
+        self.hasEditedIfNotEqual(self.friendlyNameEdit.text(), self.currentDevice.name, self.allowOriginalName)
 
     # React when self.modelNameSelect changes
     def onModelNameChange(self):
         selectedModel = self.modelNameSelect.currentText()
-        self.hasEditedIfNotEqual(selectedModel, self.currentDevice.model)
+        self.hasEditedIfNotEqual(selectedModel, self.currentDevice.model, self.allowOriginalModel)
 
     # React when address type changes
     def onRadioToggle(self, isChecked):
@@ -473,9 +489,9 @@ class ConfigWindow(QtGui.QMainWindow):
                 self.hasEditedCurrentDevice = True
                 self.saveBtn.setEnabled(True)
             else:
-                self.hasEditedCurrentDevice = False
-                self.saveBtn.setEnabled(False)
-                self.hasEditedIfNotEqual(self.getIP(), self.currentDevice.addr)
+                #self.hasEditedCurrentDevice = False
+                #self.saveBtn.setEnabled(False)
+                self.hasEditedIfNotEqual(self.getIP(), self.currentDevice.addr, self.allowOriginalAddr)
             self.ipWidget.setEnabled(True)
             self.nodeNameWidget.setEnabled(False)
         elif self.nodeRadio.isChecked():
@@ -483,18 +499,15 @@ class ConfigWindow(QtGui.QMainWindow):
                 self.hasEditedCurrentDevice = True
                 self.saveBtn.setEnabled(True)
             else:
-                self.hasEditedCurrentDevice = False
-                self.saveBtn.setEnabled(False)
-                self.hasEditedIfNotEqual(self.nodeEdit.text(), self.currentDevice.addr)
+                #self.hasEditedCurrentDevice = False
+                #self.saveBtn.setEnabled(False)
+                self.hasEditedIfNotEqual(self.nodeEdit.text(), self.currentDevice.addr, self.allowOriginalAddr)
             self.ipWidget.setEnabled(False)
             self.nodeNameWidget.setEnabled(True)
-        else:
-            self.hasEditedCurrentDevice = False
-            self.saveBtn.setEnabled(False)
 
     # React when IP address changes
     def onIPChange(self):
-        self.hasEditedIfNotEqual(self.getIP(), self.currentDevice.addr)
+        self.hasEditedIfNotEqual(self.getIP(), self.currentDevice.addr, self.allowOriginalAddr)
 
     # React to node name changes
     def onNodeChange(self):
@@ -502,7 +515,7 @@ class ConfigWindow(QtGui.QMainWindow):
         if not self.noWhitespaceRegex.exactMatch(self.nodeEdit.text()) and len(self.nodeEdit.text()) > 0:
             QtGui.QMessageBox.warning(None, "Error", "The node name cannot contain whitespace.")
             self.nodeEdit.setText(self.nodeEdit.text()[:-1])
-        self.hasEditedIfNotEqual(self.nodeEdit.text(), self.currentDevice.addr)
+        self.hasEditedIfNotEqual(self.nodeEdit.text(), self.currentDevice.addr, self.allowOriginalAddr)
 
     # Update the properties of self.currentDevice based on the entered values
     def updateCurrentDevice(self):
@@ -516,24 +529,36 @@ class ConfigWindow(QtGui.QMainWindow):
             self.currentDevice.addr = self.nodeEdit.text()
 
     def validateFieldValues(self):
-        # TODO: BUG: Allow entering the original name if the user tries to save with an invalid one
         # TODO: Don't save if the name is a duplicate
+        # TODO: Decide if fields should be left blank or repopulated with their original values
+        # Validate the values entered by the user
+        # If there is an error, set flags to keep the save button enabled even if the original value is entered again
         errors = ""
         if len(self.friendlyNameEdit.text()) < 1:
             errors += "You must enter a name."
+            self.allowOriginalName = True
         if len(self.modelNameSelect.currentText()) < 1:
             errors += "\n" if len(errors) > 0 else ""
             errors += "You must select a model."
+            self.allowOriginalModel = True
+        # Not sure if 0.0.0.0 will ever be a valid IP
         if self.ipRadio.isChecked() and self.getIP() == "000.000.000.000":
             errors += "\n" if len(errors) > 0 else ""
             errors += "You must enter an IP address."
+            self.allowOriginalAddr = True
         if self.nodeRadio.isChecked() and len(self.nodeEdit.text()) < 1:
             errors += "\n" if len(errors) > 0 else ""
             errors += "You must enter a node name."
+            self.allowOriginalAddr = True
         if len(errors) > 0:
             QtGui.QMessageBox.warning(None, "Error", errors)
             return False
         return True
+
+    def resetValidationExceptions(self):
+        self.allowOriginalName = False
+        self.allowOriginalModel = False
+        self.allowOriginalAddr = False
 
 
 def main():
