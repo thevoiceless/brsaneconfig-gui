@@ -134,6 +134,7 @@ class ConfigWindow(QtGui.QMainWindow):
         self.nodeEdit = QtGui.QLineEdit()
         self.nodeNameWidget = QtGui.QWidget()
         self.previousItem = None
+        self.infoPanel = QtGui.QWidget()
 
         self.gatherInfo()
         self.initUI()
@@ -166,7 +167,6 @@ class ConfigWindow(QtGui.QMainWindow):
             self.myDevices.append(device)
 
         # self.deviceList contains only the names from self.myDevices
-        # TODO: What if there are no devices?
         self.deviceList.addItems([d.name for d in self.myDevices])
         self.deviceList.setCurrentRow(0)
 
@@ -226,6 +226,7 @@ class ConfigWindow(QtGui.QMainWindow):
         ipLayout.setSpacing(0)
 
         # Only allow 3 digits in each part of the IP
+        # TODO: Pad with zeros as soon as focus is lost
         for i, textbox in enumerate(self.ipEdits):
             textbox.setValidator(ipSegmentValidator)
             textbox.setMaxLength(3)
@@ -245,7 +246,6 @@ class ConfigWindow(QtGui.QMainWindow):
         nodeNameLayout.setSpacing(0)
         nodeNameLayout.addWidget(nodePrefix)
         nodeNameLayout.addWidget(self.nodeEdit)
-        self.nodeNameWidget = QtGui.QWidget()
         self.nodeNameWidget.setLayout(nodeNameLayout)
         self.nodeNameWidget.setContentsMargins(0, 0, 0, 0)
         self.nodeNameWidget.layout().setContentsMargins(0, 0, 0, 0)
@@ -253,6 +253,7 @@ class ConfigWindow(QtGui.QMainWindow):
 
         # "Save" and "delete" buttons
         self.saveBtn.setEnabled(False)
+        # TODO: Allow return key to trigger save as well
         self.saveBtn.clicked.connect(self.saveCurrentDevice)
         self.deleteButton.clicked.connect(self.deleteCurrentDevice)
 
@@ -282,10 +283,14 @@ class ConfigWindow(QtGui.QMainWindow):
         grid.setRowStretch(4, 1)
         grid.addWidget(buttonsWidget, 5, 0, 1, 2)
 
-        mainHBox.addLayout(grid)
+        self.infoPanel.setLayout(grid)
+        self.infoPanel.setContentsMargins(0, 0, 0, 0)
+        self.infoPanel.layout().setContentsMargins(0, 0, 0, 0)
+
+        mainHBox.addWidget(self.infoPanel)
 
         # Get info about currently-selected device and populate fields
-        self.currentDevice = self.myDevices[self.deviceList.currentRow()]
+        self.currentDevice = self.myDevices[self.deviceList.currentRow()] if self.deviceList.count() > 0 else None
         self.updateFields()
         print "Initially selected device is", self.currentDevice
 
@@ -306,39 +311,44 @@ class ConfigWindow(QtGui.QMainWindow):
 
     # Update fields in GUI based on current device
     def updateFields(self):
-        # Disable signals until all fields have been populated
-        print "disabling signals"
-        self.disableSignals()
-        print "setting name"
-        self.friendlyNameEdit.setText(self.currentDevice.name)
-
-        # Set content of model name dropdown
-        print "setting model"
-        self.modelNameSelect.setCurrentIndex(self.modelNameSelect.findText(self.currentDevice.model))
-
-        # Populate IP or node name
-        print "setting address"
-        if self.currentDevice.usesIP:
-            self.ipWidget.setEnabled(True)
-            print "checking ip"
-            self.ipRadio.setChecked(True)
-            print "populating ip"
-            for textbox, segment in zip(self.ipEdits, self.currentDevice.addr.split('.')):
-                textbox.setText(segment)
-            self.nodeNameWidget.setEnabled(False)
-            self.nodeEdit.setText("")
+        if self.currentDevice is None:
+            print "no devices"
+            self.infoPanel.setEnabled(False)
+            self.clearAllFields()
         else:
-            self.nodeNameWidget.setEnabled(True)
-            print "checking node"
-            self.nodeRadio.setChecked(True)
-            print "populating node"
-            self.nodeEdit.setText(self.currentDevice.addr)
-            self.ipWidget.setEnabled(False)
-            for textbox in self.ipEdits:
-                textbox.setText("")
+            # Disable signals until all fields have been populated
+            print "disabling signals"
+            self.disableSignals()
+            print "setting name"
+            self.friendlyNameEdit.setText(self.currentDevice.name)
 
-        print "enabling signals"
-        self.enableSignals()
+            # Set content of model name dropdown
+            print "setting model"
+            self.modelNameSelect.setCurrentIndex(self.modelNameSelect.findText(self.currentDevice.model))
+
+            # Populate IP or node name
+            print "setting address"
+            if self.currentDevice.usesIP:
+                self.ipWidget.setEnabled(True)
+                print "checking ip"
+                self.ipRadio.setChecked(True)
+                print "populating ip"
+                for textbox, segment in zip(self.ipEdits, self.currentDevice.addr.split('.')):
+                    textbox.setText(segment)
+                self.nodeNameWidget.setEnabled(False)
+                self.nodeEdit.setText("")
+            else:
+                self.nodeNameWidget.setEnabled(True)
+                print "checking node"
+                self.nodeRadio.setChecked(True)
+                print "populating node"
+                self.nodeEdit.setText(self.currentDevice.addr)
+                self.ipWidget.setEnabled(False)
+                for textbox in self.ipEdits:
+                    textbox.setText("")
+
+            print "enabling signals"
+            self.enableSignals()
 
     # Join the IP address components together
     # Will return "000.000.000.000" if no IP is entered
@@ -356,6 +366,7 @@ class ConfigWindow(QtGui.QMainWindow):
 
     # Pressed the "Add Device" button
     def addNewDevice(self):
+        self.infoPanel.setEnabled(True)
         # Create the new device and add it to myDevices and the devices list
         newDevice = BrotherDevice()
         self.myDevices.append(newDevice)
@@ -424,14 +435,15 @@ class ConfigWindow(QtGui.QMainWindow):
             BrotherDevice.removeDevice(self.currentDevice.name)
             del self.myDevices[self.deviceList.currentRow()]
             self.deviceList.takeItem(self.deviceList.currentRow())
-            self.currentDevice = self.myDevices[self.deviceList.currentRow()]
+            self.currentDevice = self.myDevices[self.deviceList.currentRow()] if self.deviceList.count() > 0 else None
             self.hasEditedCurrentDevice = False
             self.updateFields()
 
     # When the selected device changes, remember the previous one in case there's an error and we need to go back to it
     def rememberPreviousItem(self, currentItem, previousItem):
-        self.previousItem = previousItem
-        print "set previous to", self.previousItem.text()
+        if previousItem is not None:
+            self.previousItem = previousItem
+            print "set previous to", self.previousItem.text()
 
     # Check if there are changes to be saved when the user clicks on a different device and update the GUI accordingly
     # This gives control over whether or not to allow switching to a new device if there are errors with the current one
@@ -646,6 +658,17 @@ class ConfigWindow(QtGui.QMainWindow):
     # Ensure that something was entered into each text box for the IP
     def isIPcomplete(self):
         return all(self.getIPEditsContents())
+
+    def clearAllFields(self):
+        self.disableSignals()
+        print "clearing fields"
+        self.friendlyNameEdit.setText('')
+        self.modelNameSelect.setCurrentIndex(-1)
+        self.ipRadio.setChecked(False)
+        for box in self.ipEdits:
+            box.setText('')
+        self.nodeRadio.setChecked(False)
+        self.nodeEdit.setText('')
 
 
 def main():
