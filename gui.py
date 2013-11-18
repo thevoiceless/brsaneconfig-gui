@@ -116,9 +116,6 @@ class ConfigWindow(QtGui.QMainWindow):
         self.noWhitespaceRegex = QtCore.QRegExp('[^\s]+')
         self.hasEditedCurrentDevice = False
         self.ipEdits = []
-        self.allowOriginalName = False
-        self.allowOriginalModel = False
-        self.allowOriginalAddr = False
 
         # Interface elements
         self.deviceList = QtGui.QListWidget()
@@ -342,15 +339,9 @@ class ConfigWindow(QtGui.QMainWindow):
         return '.'.join(self.getIPEditsContents(pad = True))
 
     # If thing1 and thing2 are not equal, the current device has been edited
-    # The allowOriginal parameter is used to override the comparison in some situations
-    # For example, the user may make multiple changes, only some of which could be valid. They should be able to save
-    # even after entering the original (valid) values again. Without overriding the comparison done here, the "save"
-    # button could be disabled if the value matches the original name. This usually happens if the user leaves a field
-    # blank, because the contents of empty fields are currently left empty after validation fails. As a result, the save
-    # button would need to be enabled even if they enter the original value again.
-    # TODO: Fix this ^
-    def hasEditedIfNotEqual(self, thing1, thing2, allowOriginal = False):
-        return thing1 != thing2 or allowOriginal
+    # TODO: This isn't really needed anymore, can directly replace with the comparison being done
+    def hasEditedIfNotEqual(self, thing1, thing2):
+        return thing1 != thing2
 
     # Pressed the "Add Device" button
     def addNewDevice(self):
@@ -397,7 +388,6 @@ class ConfigWindow(QtGui.QMainWindow):
         self.currentDevice.isNew = False
         self.hasEditedCurrentDevice = False
         self.saveBtn.setEnabled(False)
-        self.resetValidationExceptions()
         return True
 
     # Save device and update the displayed name
@@ -429,9 +419,17 @@ class ConfigWindow(QtGui.QMainWindow):
     # This gives control over whether or not to allow switching to a new device if there are errors with the current one
     # Orignally rememberPreviousItem() was used with the currentItemChanged signal, but the code would get stuck in a
     # loop when calling setCurrentItem(previous) because doing so would trigger the signal all over again
+    # TODO: BUG:
+    # TODO:   1. Have two devices saved
+    # TODO:   2. Invalidate a field on one device (clear it)
+    # TODO:   3. Click on another device in the device list
+    # TODO:   4. Answer "yes" in the save dialog, validation will prevent selection of new device
+    # TODO:   5. Click on the current (invalid) device
+    # TODO:   6. Save dialog will appear; click "yes"
+    # TODO:   7. Device list will now show the wrong device selected
     def onDevicePressed(self, item):
         # Pressed on a different one than was previously selected
-        if item != self.previousItem:
+        if item != self.previousItem and self.previousItem is not None:
             # Ask the user if they want to save any changes that have been made
             if self.hasEditedCurrentDevice:
                 saveChanges = QtGui.QMessageBox.question(None, "", "Save changes to current device?",
@@ -455,10 +453,12 @@ class ConfigWindow(QtGui.QMainWindow):
                         self.myDevices.pop()
                     self.currentDevice = self.myDevices[self.deviceList.currentRow()]
                     self.hasEditedCurrentDevice = False
-                    self.resetValidationExceptions()
             else:
                 self.previousItem = item
                 self.currentDevice = self.myDevices[self.deviceList.currentRow()]
+        else:
+            # TODO: Ask if the user wants to reset to original values. For now, do nothing
+            return
 
         self.updateFields()
 
@@ -521,64 +521,47 @@ class ConfigWindow(QtGui.QMainWindow):
 
         if len(self.friendlyNameEdit.text()) < 1:
             errors += "You must enter a name."
-            self.allowOriginalName = True
 
         if self.friendlyNameEdit.text() in self.getNames(self.currentDevice):
             errors += "\n" if len(errors) > 0 else ""
             errors += "A device with that name already exists."
-            self.allowOriginalName = True
 
         if len(self.modelNameSelect.currentText()) < 1:
             errors += "\n" if len(errors) > 0 else ""
             errors += "You must select a model."
-            self.allowOriginalModel = True
 
         if self.ipRadio.isChecked() and not self.isIPcomplete():
             errors += "\n" if len(errors) > 0 else ""
             errors += "You must enter a full IP address."
-            self.allowOriginalAddr = True
 
         if self.nodeRadio.isChecked() and len(self.nodeEdit.text()) < 1:
             errors += "\n" if len(errors) > 0 else ""
             errors += "You must enter a node name."
-            self.allowOriginalAddr = True
 
         if len(errors) > 0:
             QtGui.QMessageBox.warning(None, "Error", errors)
             return False
         return True
 
-    def resetValidationExceptions(self):
-        self.allowOriginalName = False
-        self.allowOriginalModel = False
-        self.allowOriginalAddr = False
-
     # Determine if the device has been edited
     # Check if any field values differ from the originals, "OR" the results together
     def checkForEdits(self):
         # Name
-        edited = False or self.hasEditedIfNotEqual(self.friendlyNameEdit.text(),
-                                                   self.currentDevice.name,
-                                                   self.allowOriginalName)
+        edited = False or self.hasEditedIfNotEqual(self.friendlyNameEdit.text(), self.currentDevice.name)
         # Model
-        edited = edited or self.hasEditedIfNotEqual(self.modelNameSelect.currentText(),
-                                                    self.currentDevice.model,
-                                                    self.allowOriginalModel)
+        edited = edited or self.hasEditedIfNotEqual(self.modelNameSelect.currentText(), self.currentDevice.model)
         # IP/Node
         if self.ipRadio.isChecked():
             if not self.currentDevice.usesIP:
                 edited = True
             else:
-                edited = edited or self.hasEditedIfNotEqual(self.getIP(),
-                                                            self.currentDevice.addr,
-                                                            self.allowOriginalAddr)
+                edited = edited or self.hasEditedIfNotEqual(self.getIP(), self.currentDevice.addr)
         elif self.nodeRadio.isChecked():
             if self.currentDevice.usesIP:
                 edited = True
             else:
-                edited = edited or self.hasEditedIfNotEqual(self.nodeEdit.text(),
-                                                            self.currentDevice.addr,
-                                                            self.allowOriginalAddr)
+                edited = edited or self.hasEditedIfNotEqual(self.nodeEdit.text(), self.currentDevice.addr)
+
         # Act accordingly
         self.hasEditedCurrentDevice = edited
         self.saveBtn.setEnabled(self.hasEditedCurrentDevice)
