@@ -1,8 +1,10 @@
 GUI for Brother's brsaneconfig3 utility
 =====
-> Status: Incomplete
+> NOTE: This project is in no way affiliated with or endorsed by Brother International Corporation
 
-This is a simple Python/Qt GUI that interfaces with Brother's brsaneconfig3 utility. I usually have to redo the setup of my printer every time its IP address changes. I got tired of repeatedly looking up the commands and I wanted an excuse to mess with Qt, so I made this.
+<p align="center"><img src="gui.png" /></p>
+
+This is a basic Python/Qt GUI for Brother's `brsaneconfig3` utility that simply executes the command with arguments corresponding to what the user enters.
 
 Dependencies
 -----
